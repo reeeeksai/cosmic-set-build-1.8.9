@@ -34,5 +34,8 @@ public class ExampleMod
 
 		// some example code
         MinecraftForge.EVENT_BUS.register(new ArmorEnchantLogger());
+        
+        // register client-only GUI listener
+        MinecraftForge.EVENT_BUS.register(new com.example.examplemod.ChestGuiListener());
     }
 }
