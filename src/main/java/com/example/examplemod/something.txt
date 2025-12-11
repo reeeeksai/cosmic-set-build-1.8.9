@@ -1,0 +1,177 @@
+package com.example.examplemod;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class GuiDesiredEnchants extends GuiScreen {
+
+    private static final String[] ALL_ENCHANTS = new String[] {
+            "Lifesteal",
+            "Overload",
+            "Gears",
+            "Tank",
+            "Rage",
+            "Combo",
+            "Execute",
+            "Sniper"
+    };
+
+    private final List<GuiEnchantSelectButton> enchantButtons = new ArrayList<GuiEnchantSelectButton>();
+
+    private GuiButton helmetButton;
+    private GuiButton chestButton;
+    private GuiButton legsButton;
+    private GuiButton bootsButton;
+    private GuiButton swordButton;
+    private GuiButton axeButton;
+
+    private String selectedEnchant = null;
+
+    @Override
+    public void initGui() {
+
+        this.buttonList.clear();
+        enchantButtons.clear();
+        selectedEnchant = null;
+
+        int centerX = this.width / 2;
+        int leftX = centerX - 160;
+
+        int y = 40;
+
+        this.buttonList.add(new GuiButton(9000, leftX, y - 20, 120, 20, "All Enchants"));
+
+        int id = 0;
+        for (int i = 0; i < ALL_ENCHANTS.length; i++) {
+            String ench = ALL_ENCHANTS[i];
+            GuiEnchantSelectButton btn = new GuiEnchantSelectButton(
+                    id++,
+                    leftX,
+                    y,
+                    120,
+                    20,
+                    ench
+            );
+            this.buttonList.add(btn);
+            enchantButtons.add(btn);
+            y += 22;
+        }
+
+        int rightX = centerX + 20;
+        int slotY = 40;
+
+        helmetButton = new GuiButton(1000, rightX, slotY, 150, 20, "");
+        this.buttonList.add(helmetButton);
+        slotY += 24;
+
+        chestButton = new GuiButton(1001, rightX, slotY, 150, 20, "");
+        this.buttonList.add(chestButton);
+        slotY += 24;
+
+        legsButton = new GuiButton(1002, rightX, slotY, 150, 20, "");
+        this.buttonList.add(legsButton);
+        slotY += 24;
+
+        bootsButton = new GuiButton(1003, rightX, slotY, 150, 20, "");
+        this.buttonList.add(bootsButton);
+        slotY += 24;
+
+        slotY += 10;
+
+        swordButton = new GuiButton(1004, rightX, slotY, 150, 20, "");
+        this.buttonList.add(swordButton);
+        slotY += 24;
+
+        axeButton = new GuiButton(1005, rightX, slotY, 150, 20, "");
+        this.buttonList.add(axeButton);
+
+        this.buttonList.add(new GuiButton(
+                2000,
+                centerX - 40,
+                this.height - 30,
+                80,
+                20,
+                "Done"
+        ));
+
+        updateSlotButtonsText();
+    }
+
+    private void updateSlotButtonsText() {
+        helmetButton.displayString = "Helmet: " + DesiredEnchants.getDesiredAsString(DesiredEnchants.SlotType.HELMET);
+        chestButton.displayString  = "Chest: "  + DesiredEnchants.getDesiredAsString(DesiredEnchants.SlotType.CHESTPLATE);
+        legsButton.displayString   = "Legs: "   + DesiredEnchants.getDesiredAsString(DesiredEnchants.SlotType.LEGGINGS);
+        bootsButton.displayString  = "Boots: "  + DesiredEnchants.getDesiredAsString(DesiredEnchants.SlotType.BOOTS);
+        swordButton.displayString  = "Sword: "  + DesiredEnchants.getDesiredAsString(DesiredEnchants.SlotType.SWORD);
+        axeButton.displayString    = "Axe: "    + DesiredEnchants.getDesiredAsString(DesiredEnchants.SlotType.AXE);
+    }
+
+    private void updateEnchantButtonsText() {
+        for (int i = 0; i < enchantButtons.size(); i++) {
+            GuiEnchantSelectButton btn = enchantButtons.get(i);
+            if (btn.enchantName.equals(selectedEnchant)) {
+                btn.displayString = "> " + btn.enchantName + " <";
+            } else {
+                btn.displayString = btn.enchantName;
+            }
+        }
+    }
+
+    @Override
+    protected void actionPerformed(GuiButton button) throws IOException {
+
+        if (button.id == 2000) {
+            Minecraft.getMinecraft().displayGuiScreen(null);
+            return;
+        }
+
+        if (button instanceof GuiEnchantSelectButton) {
+            GuiEnchantSelectButton btn = (GuiEnchantSelectButton) button;
+            selectedEnchant = btn.enchantName;
+            updateEnchantButtonsText();
+            return;
+        }
+
+        if (selectedEnchant == null) return;
+
+        if (button.id == 1000) {
+            DesiredEnchants.toggle(DesiredEnchants.SlotType.HELMET, selectedEnchant);
+        } else if (button.id == 1001) {
+            DesiredEnchants.toggle(DesiredEnchants.SlotType.CHESTPLATE, selectedEnchant);
+        } else if (button.id == 1002) {
+            DesiredEnchants.toggle(DesiredEnchants.SlotType.LEGGINGS, selectedEnchant);
+        } else if (button.id == 1003) {
+            DesiredEnchants.toggle(DesiredEnchants.SlotType.BOOTS, selectedEnchant);
+        } else if (button.id == 1004) {
+            DesiredEnchants.toggle(DesiredEnchants.SlotType.SWORD, selectedEnchant);
+        } else if (button.id == 1005) {
+            DesiredEnchants.toggle(DesiredEnchants.SlotType.AXE, selectedEnchant);
+        }
+
+        updateSlotButtonsText();
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        this.drawDefaultBackground();
+        this.drawCenteredString(this.fontRendererObj, "Select Desired Enchants", this.width / 2, 15, 0xFFFFFF);
+        this.drawString(this.fontRendererObj,
+                "Click an enchant on the LEFT, then click a slot on the RIGHT.",
+                10, this.height - 40, 0xAAAAAA);
+        super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    private static class GuiEnchantSelectButton extends GuiButton {
+        public final String enchantName;
+
+        public GuiEnchantSelectButton(int id, int x, int y, int w, int h, String enchantName) {
+            super(id, x, y, w, h, enchantName);
+            this.enchantName = enchantName;
+        }
+    }
+}
