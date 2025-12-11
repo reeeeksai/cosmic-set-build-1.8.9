@@ -33,6 +33,7 @@ public class GuiDesiredEnchants extends GuiScreen {
     private final List<GuiEnchantSelectButton> enchantButtons = new ArrayList<GuiEnchantSelectButton>();
     private GuiTextField searchField;
     private int scrollOffset = 0;
+    private int slotScrollOffset = 0;
 
     private GuiButton helmetButton;
     private GuiButton chestButton;
@@ -50,7 +51,7 @@ public class GuiDesiredEnchants extends GuiScreen {
         selectedEnchant = null;
 
         int centerX = this.width / 2;
-        int leftX = centerX - 160;
+        int leftX = centerX - 200;
 
         // Search Bar
         this.searchField = new GuiTextField(8000, this.fontRendererObj, leftX, 15, 120, 20);
@@ -62,14 +63,13 @@ public class GuiDesiredEnchants extends GuiScreen {
 
         updateFilteredButtons();
 
-        int rightX = centerX + 20;
-        int slotY = 40;
-
-        helmetButton = new GuiButton(1000, rightX, slotY, 150, 20, "");
-        chestButton = new GuiButton(1001, rightX, slotY + 25, 150, 20, "");
-        bootsButton = new GuiButton(1002, rightX, slotY + 50, 150, 20, "");
-        swordButton = new GuiButton(1003, rightX, slotY + 75, 150, 20, "");
-        axeButton = new GuiButton(1004, rightX, slotY + 100, 150, 20, "");
+        // Initialize slot buttons
+        // Positions will be updated in drawScreen
+        helmetButton = new GuiButton(1000, 0, 0, 150, 20, "");
+        chestButton = new GuiButton(1001, 0, 0, 150, 20, "");
+        bootsButton = new GuiButton(1002, 0, 0, 150, 20, "");
+        swordButton = new GuiButton(1003, 0, 0, 150, 20, "");
+        axeButton = new GuiButton(1004, 0, 0, 150, 20, "");
 
         this.buttonList.add(helmetButton);
         this.buttonList.add(chestButton);
@@ -103,7 +103,7 @@ public class GuiDesiredEnchants extends GuiScreen {
         enchantButtons.clear();
 
         int centerX = this.width / 2;
-        int leftX = centerX - 160;
+        int leftX = centerX - 200;
         int id = 0;
         String query = searchField.getText().toLowerCase();
 
@@ -122,20 +122,41 @@ public class GuiDesiredEnchants extends GuiScreen {
         super.handleMouseInput();
         int dWheel = Mouse.getEventDWheel();
         if (dWheel != 0) {
-            if (dWheel > 0) {
-                scrollOffset -= 22;
+            int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
+            int centerX = this.width / 2;
+
+            if (mouseX < centerX - 60) {
+                if (dWheel > 0) {
+                    scrollOffset -= 22;
+                } else {
+                    scrollOffset += 22;
+                }
+
+                int listLength = enchantButtons.size() * 22;
+                int viewHeight = this.height - 75; // Area between header and bottom
+
+                if (scrollOffset < 0) scrollOffset = 0;
+                if (listLength > viewHeight && scrollOffset > listLength - viewHeight) {
+                    scrollOffset = listLength - viewHeight;
+                } else if (listLength <= viewHeight) {
+                    scrollOffset = 0;
+                }
             } else {
-                scrollOffset += 22;
-            }
-            
-            int listLength = enchantButtons.size() * 22;
-            int viewHeight = this.height - 75; // Area between header and bottom
-            
-            if (scrollOffset < 0) scrollOffset = 0;
-            if (listLength > viewHeight && scrollOffset > listLength - viewHeight) {
-                scrollOffset = listLength - viewHeight;
-            } else if (listLength <= viewHeight) {
-                scrollOffset = 0;
+                if (dWheel > 0) {
+                    slotScrollOffset -= 20;
+                } else {
+                    slotScrollOffset += 20;
+                }
+
+                int totalSlotWidth = 5 * 160; // 5 buttons * (150 width + 10 padding)
+                int slotViewW = this.width - (centerX - 50) - 20;
+
+                if (slotScrollOffset < 0) slotScrollOffset = 0;
+                if (totalSlotWidth > slotViewW && slotScrollOffset > totalSlotWidth - slotViewW) {
+                    slotScrollOffset = totalSlotWidth - slotViewW;
+                } else if (totalSlotWidth <= slotViewW) {
+                    slotScrollOffset = 0;
+                }
             }
         }
     }
@@ -159,7 +180,7 @@ public class GuiDesiredEnchants extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
-        
+
         // Update Scrollable List
         int listStartY = 65;
         int bottomLimit = this.height - 10;
@@ -174,18 +195,54 @@ public class GuiDesiredEnchants extends GuiScreen {
         }
 
         this.searchField.drawTextBox();
-        
+
+        // Update Slot Button Positions (Horizontal Scroll)
+        int centerX = this.width / 2;
+        int slotViewX = centerX - 50;
+        int slotViewY = 40;
+        int slotViewW = this.width - slotViewX - 20;
+
+        GuiButton[] slots = {helmetButton, chestButton, bootsButton, swordButton, axeButton};
+        for (int i = 0; i < slots.length; i++) {
+            GuiButton btn = slots[i];
+            int relX = (i * 160) - slotScrollOffset;
+            btn.xPosition = slotViewX + relX;
+            btn.yPosition = slotViewY;
+            // Only show if visible within the horizontal viewport
+            btn.visible = btn.xPosition + btn.width > slotViewX && btn.xPosition < slotViewX + slotViewW;
+        }
+
         // Draw rest of the GUI
         this.drawCenteredString(this.fontRendererObj, "Select Desired Enchants", this.width / 2, 5, 0xFFFFFF);
         super.drawScreen(mouseX, mouseY, partialTicks);
 
+        // Draw Horizontal Scrollbar for Slots
+        int totalSlotWidth = slots.length * 160;
+        if (totalSlotWidth > slotViewW) {
+            int scrollBarX = slotViewX;
+            int scrollBarY = slotViewY + 25; // Below buttons
+            int scrollBarHeight = 6;
+
+            // Track
+            drawRect(scrollBarX, scrollBarY, scrollBarX + slotViewW, scrollBarY + scrollBarHeight, 0x80000000);
+
+            // Thumb
+            int thumbWidth = (int) ((float) slotViewW * slotViewW / totalSlotWidth);
+            if (thumbWidth < 32) thumbWidth = 32;
+            if (thumbWidth > slotViewW) thumbWidth = slotViewW;
+
+            int maxScroll = totalSlotWidth - slotViewW;
+            int thumbX = scrollBarX + (int) ((float) slotScrollOffset / maxScroll * (slotViewW - thumbWidth));
+
+            drawRect(thumbX, scrollBarY, thumbX + thumbWidth, scrollBarY + scrollBarHeight, 0xFFC0C0C0);
+        }
+
         // Draw Scrollbar
         if (totalListHeight > viewHeight) {
-            int centerX = this.width / 2;
-            int leftX = centerX - 160;
+            int leftX = centerX - 200;
             int scrollBarX = leftX + 124;
             int scrollBarWidth = 6;
-            
+
             // Track
             drawRect(scrollBarX, listStartY, scrollBarX + scrollBarWidth, listStartY + viewHeight, 0x80000000);
 
