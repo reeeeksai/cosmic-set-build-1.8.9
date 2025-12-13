@@ -34,8 +34,10 @@ public class ExampleMod
 
 		// some example code
         MinecraftForge.EVENT_BUS.register(new ArmorEnchantLogger());
-        
-        // register client-only GUI listener
-        MinecraftForge.EVENT_BUS.register(new com.example.examplemod.ChestGuiListener());
+        // initialize inventory click logger (registers its keybinding and handler)
+        com.example.examplemod.InventoryClickLogger.init();
+
+        // register client-only GUI listener and overlay
+        MinecraftForge.EVENT_BUS.register(new com.example.examplemod.InventoryMarkOverlay());
     }
 }

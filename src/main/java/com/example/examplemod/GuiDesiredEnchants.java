@@ -24,6 +24,12 @@ public class GuiDesiredEnchants extends GuiScreen {
     private static final int SLOT_ID_BASE = 1000;
     private static final int DONE_ID = 2000;
     private static final int TAG_ID_BASE = 4000; // base for tag label/remove pairs
+    // set management IDs
+    private static final int SET_PREV_ID = 6000;
+    private static final int SET_NEXT_ID = 6001;
+    private static final int SET_LABEL_ID = 6002;
+    private static final int SET_NEW_ID = 6003;
+    private static final int SET_DELETE_ID = 6005;
 
     private final List<GuiEnchantSelectButton> enchantButtons = new ArrayList<GuiEnchantSelectButton>();
     private final List<GuiTagButton> tagButtons = new ArrayList<GuiTagButton>();
@@ -33,6 +39,10 @@ public class GuiDesiredEnchants extends GuiScreen {
 
     // per-slot assigned enchants (6 slots now: Helmet, Chestplate, Leggings, Boots, Sword, Axe)
     private final List<String>[] slotEnchants = new ArrayList[6];
+
+    // persistence manager
+    private EnchantSetManager setManager;
+    private boolean creatingNew = false;
 
     private GuiButton helmetButton;
     private GuiButton chestButton;
@@ -64,6 +74,18 @@ public class GuiDesiredEnchants extends GuiScreen {
         // Label
         this.buttonList.add(new GuiButton(9000, leftX, 40, 120, 20, "All Enchants"));
 
+        // Set manager and set selector buttons
+        setManager = EnchantSetManager.getInstance();
+        this.buttonList.add(new GuiButton(SET_PREV_ID, leftX + 130, 15, 18, 20, "<"));
+        this.buttonList.add(new GuiButton(SET_LABEL_ID, leftX + 150, 15, 140, 20, ""));
+        this.buttonList.add(new GuiButton(SET_NEXT_ID, leftX + 294, 15, 18, 20, ">"));
+        // place New and Delete on the first row next to the set selector
+        this.buttonList.add(new GuiButton(SET_NEW_ID, leftX + 320, 15, 60, 20, "New Set"));
+        this.buttonList.add(new GuiButton(SET_DELETE_ID, leftX + 386, 15, 60, 20, "Delete"));
+
+        // populate GUI from active set
+        loadActiveSetToGui();
+
         updateFilteredButtons();
 
         // Initialize slot buttons (smaller so they fit)
@@ -83,6 +105,8 @@ public class GuiDesiredEnchants extends GuiScreen {
         this.buttonList.add(swordButton);
         this.buttonList.add(axeButton);
 
+        // no per-GUI mark buttons here; marking happens in the inventory overlay
+
         this.buttonList.add(new GuiButton(
                 DONE_ID,
                 centerX - 40,
@@ -94,6 +118,58 @@ public class GuiDesiredEnchants extends GuiScreen {
 
         updateSlotButtonsText();
         updateTagButtons();
+    }
+
+    private void loadActiveSetToGui() {
+        // ensure slotEnchants initialized
+        for (int i = 0; i < slotEnchants.length; i++) slotEnchants[i] = new ArrayList<String>();
+        if (setManager == null) setManager = EnchantSetManager.getInstance();
+        EnchantSet active = setManager.getActiveSet();
+        if (active == null) return;
+        // populate from desired
+        for (int i = 0; i < SlotType.values().length; i++) {
+            SlotType st = SlotType.values()[i];
+            List<String> list = active.desired.get(st.name());
+            if (list != null) {
+                slotEnchants[i].clear();
+                for (int j = 0; j < list.size(); j++) slotEnchants[i].add(list.get(j));
+            }
+        }
+        // update label on GUI
+        GuiButton labelBtn = getButtonById(SET_LABEL_ID);
+        if (labelBtn != null) labelBtn.displayString = active.name;
+        // reset create UI state
+        creatingNew = false;
+        GuiButton newBtn = getButtonById(SET_NEW_ID);
+        if (newBtn != null) newBtn.displayString = "New Set";
+    }
+
+    private void saveGuiToActiveSet() {
+        if (setManager == null) setManager = EnchantSetManager.getInstance();
+        EnchantSet active = setManager.getActiveSet();
+        if (active == null) return;
+        for (int i = 0; i < SlotType.values().length; i++) {
+            SlotType st = SlotType.values()[i];
+            List<String> target = active.desired.get(st.name());
+            if (target == null) {
+                target = new ArrayList<String>();
+                active.desired.put(st.name(), target);
+            }
+            target.clear();
+            for (int j = 0; j < slotEnchants[i].size(); j++) target.add(slotEnchants[i].get(j));
+        }
+        active.touch();
+        setManager.save();
+    }
+
+    private GuiButton getButtonById(int id) {
+        for (Object o : this.buttonList) {
+            if (o instanceof GuiButton) {
+                GuiButton b = (GuiButton) o;
+                if (b.id == id) return b;
+            }
+        }
+        return null;
     }
 
     private void updateSlotButtonsText() {
@@ -209,6 +285,60 @@ public class GuiDesiredEnchants extends GuiScreen {
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
+        // set navigation
+        if (button.id == SET_PREV_ID || button.id == SET_NEXT_ID) {
+            // save current GUI first
+            saveGuiToActiveSet();
+            List<EnchantSet> all = setManager.getAllSets();
+            if (all.size() == 0) return;
+            String currentId = setManager.getActiveSet() != null ? setManager.getActiveSet().id : null;
+            int idx = 0;
+            for (int i = 0; i < all.size(); i++) {
+                if (all.get(i).id.equals(currentId)) { idx = i; break; }
+            }
+            if (button.id == SET_PREV_ID) idx = (idx - 1 + all.size()) % all.size();
+            else idx = (idx + 1) % all.size();
+            setManager.setActiveSet(all.get(idx).id);
+            loadActiveSetToGui();
+            updateTagButtons();
+            return;
+        }
+
+        if (button.id == SET_NEW_ID) {
+            // toggle create-new mode: first click enters create mode (type name in search box), second click creates
+            GuiButton nb = getButtonById(SET_NEW_ID);
+            if (!creatingNew) {
+                creatingNew = true;
+                this.searchField.setText("");
+                this.searchField.setFocused(true);
+                if (nb != null) nb.displayString = "Create";
+                return;
+            } else {
+                String name = this.searchField.getText();
+                if (name == null || name.trim().length() == 0) name = "New Set";
+                EnchantSet s = setManager.createSet(name);
+                setManager.setActiveSet(s.id);
+                creatingNew = false;
+                if (nb != null) nb.displayString = "New Set";
+                loadActiveSetToGui();
+                updateTagButtons();
+                return;
+            }
+        }
+
+        
+
+        if (button.id == SET_DELETE_ID) {
+            EnchantSet active = setManager.getActiveSet();
+            if (active == null) return;
+            boolean ok = setManager.deleteSet(active.id);
+            if (ok) {
+                loadActiveSetToGui();
+                updateTagButtons();
+            }
+            return;
+        }
+
         // enchant selected -> highlight enchant and slot buttons (no auto-add)
         if (button.id >= ENCHANT_ID_BASE && button.id < ENCHANT_ID_BASE + 10000) {
             for (GuiEnchantSelectButton b : enchantButtons) {
@@ -234,10 +364,14 @@ public class GuiDesiredEnchants extends GuiScreen {
                     updateTagButtons();
                     // after placing the enchant, unselect it
                     selectedEnchant = null;
+                    // autosave
+                    saveGuiToActiveSet();
                 }
             }
             return;
         }
+
+        // marking is handled in inventory via key+click; no GUI mark buttons here
 
         // tag label / remove buttons
         if (button.id >= TAG_ID_BASE) {
@@ -255,6 +389,7 @@ public class GuiDesiredEnchants extends GuiScreen {
                     // remove
                     slotEnchants[slot].remove(enchName);
                     updateTagButtons();
+                    saveGuiToActiveSet();
                 } else {
                     // label clicked: toggle selectedEnchant to this enchant (click again to unselect)
                     if (selectedEnchant != null && selectedEnchant.equals(enchName)) {
@@ -268,6 +403,8 @@ public class GuiDesiredEnchants extends GuiScreen {
         }
 
         if (button.id == DONE_ID) {
+            // save and close
+            saveGuiToActiveSet();
             this.mc.displayGuiScreen(null);
             return;
         }
@@ -315,6 +452,8 @@ public class GuiDesiredEnchants extends GuiScreen {
             btn.yPosition = slotStartY + (row * rowGapY);
             btn.visible = true;
         }
+
+        // marking UI removed from this screen; inventory overlay shows marks instead
 
         // Rebuild tag buttons positions now that slot positions are known
         updateTagButtons();
@@ -373,6 +512,8 @@ public class GuiDesiredEnchants extends GuiScreen {
                 drawRect(s.xPosition - 2, s.yPosition - 2, s.xPosition + s.width + 2, s.yPosition + s.height + 2, 0x40FFD700);
             }
         }
+
+        // marking visuals moved to inventory overlay; no GUI highlights here
 
         // Keep an indicator next to each slot showing how many enchants it has
         for (int i = 0; i < slots.length; i++) {
