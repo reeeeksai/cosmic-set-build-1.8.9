@@ -12,13 +12,8 @@ import java.util.List;
 
 public class GuiDesiredEnchants extends GuiScreen {
 
-    private static final String[] ALL_ENCHANTS = new String[]{
-            "Lifesteal",
-            "Overload",
-            "Gears",
-            "Tank",
-            "Rage",
-    };
+        // dynamic list of enchant definitions from EnchantRegistry
+        private java.util.List<EnchantDef> allEnchantDefs = new java.util.ArrayList<EnchantDef>();
 
     private static final int ENCHANT_ID_BASE = 3000;
     private static final int SLOT_ID_BASE = 1000;
@@ -85,6 +80,13 @@ public class GuiDesiredEnchants extends GuiScreen {
 
         // populate GUI from active set
         loadActiveSetToGui();
+
+        // load all enchant defs from the registry and sort by name
+        allEnchantDefs.clear();
+        for (EnchantDef d : EnchantRegistry.all()) allEnchantDefs.add(d);
+        java.util.Collections.sort(allEnchantDefs, new java.util.Comparator<EnchantDef>() {
+            @Override public int compare(EnchantDef a, EnchantDef b) { return a.name.compareToIgnoreCase(b.name); }
+        });
 
         updateFilteredButtons();
 
@@ -191,8 +193,9 @@ public class GuiDesiredEnchants extends GuiScreen {
         int id = 0;
         String query = this.searchField != null ? this.searchField.getText().toLowerCase() : "";
 
-        for (int i = 0; i < ALL_ENCHANTS.length; i++) {
-            String ench = ALL_ENCHANTS[i];
+        for (int i = 0; i < allEnchantDefs.size(); i++) {
+            EnchantDef def = allEnchantDefs.get(i);
+            String ench = def.name;
             if (query.isEmpty() || ench.toLowerCase().contains(query)) {
                 GuiEnchantSelectButton btn = new GuiEnchantSelectButton(ENCHANT_ID_BASE + id++, leftX, 0, 120, 20, ench, i);
                 this.buttonList.add(btn);
@@ -231,8 +234,28 @@ public class GuiDesiredEnchants extends GuiScreen {
     }
 
     private int getEnchantGlobalIndex(String name) {
-        for (int i = 0; i < ALL_ENCHANTS.length; i++) if (ALL_ENCHANTS[i].equals(name)) return i;
+        for (int i = 0; i < allEnchantDefs.size(); i++) if (allEnchantDefs.get(i).name.equals(name)) return i;
         return -1;
+    }
+
+    private boolean enchantAppliesTo(EnchantDef def, SlotType st) {
+        if (def == null || def.appliesTo == null) return false;
+        switch (st) {
+            case HELMET:
+                return def.appliesTo.contains(SlotGroup.HELMET) || def.appliesTo.contains(SlotGroup.ARMOR);
+            case CHESTPLATE:
+                return def.appliesTo.contains(SlotGroup.CHESTPLATE) || def.appliesTo.contains(SlotGroup.ARMOR);
+            case LEGGINGS:
+                return def.appliesTo.contains(SlotGroup.LEGGINGS) || def.appliesTo.contains(SlotGroup.ARMOR);
+            case BOOTS:
+                return def.appliesTo.contains(SlotGroup.BOOTS) || def.appliesTo.contains(SlotGroup.ARMOR);
+            case SWORD:
+                return def.appliesTo.contains(SlotGroup.SWORD) || def.appliesTo.contains(SlotGroup.WEAPON);
+            case AXE:
+                return def.appliesTo.contains(SlotGroup.AXE) || def.appliesTo.contains(SlotGroup.WEAPON);
+            default:
+                return false;
+        }
     }
 
     @Override
@@ -358,6 +381,19 @@ public class GuiDesiredEnchants extends GuiScreen {
         if (button.id >= SLOT_ID_BASE && button.id <= SLOT_ID_BASE + 5) {
             if (selectedEnchant != null) {
                 int idx = button.id - SLOT_ID_BASE;
+                // check if the selected enchant is allowed on this slot
+                int gidx = getEnchantGlobalIndex(selectedEnchant);
+                boolean allowed = true;
+                if (gidx >= 0) {
+                    EnchantDef def = allEnchantDefs.get(gidx);
+                    allowed = enchantAppliesTo(def, SlotType.values()[idx]);
+                }
+                if (!allowed) {
+                    this.mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText("That enchant cannot be applied to this piece."));
+                    selectedEnchant = null;
+                    return;
+                }
+
                 List<String> list = slotEnchants[idx];
                 if (!list.contains(selectedEnchant)) {
                     list.add(selectedEnchant);
@@ -383,8 +419,8 @@ public class GuiDesiredEnchants extends GuiScreen {
             int sub = rem % 2; // 0 = label, 1 = remove
             // find enchant name from global index
             int globalIndex = enchPair;
-            if (slot >= 0 && slot < slotEnchants.length && globalIndex >= 0 && globalIndex < ALL_ENCHANTS.length) {
-                String enchName = ALL_ENCHANTS[globalIndex];
+            if (slot >= 0 && slot < slotEnchants.length && globalIndex >= 0 && globalIndex < allEnchantDefs.size()) {
+                String enchName = allEnchantDefs.get(globalIndex).name;
                 if (sub == 1) {
                     // remove
                     slotEnchants[slot].remove(enchName);
