@@ -173,7 +173,7 @@ public class GuiEnchantPanel {
      */
     public void drawScaledLabels(int mouseX, int mouseY, float partialTicks) {
         if (fontRenderer == null) return;
-        float s = 0.74f;
+        float s = 0.745f;
         float inv = 1.0f / s;
         GL11.glPushMatrix();
         GL11.glScalef(s, s, 1f);
