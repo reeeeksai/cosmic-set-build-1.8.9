@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL11;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -66,17 +67,40 @@ public class GuiDesiredEnchants extends GuiScreen {
         this.searchField.setFocused(true);
         this.searchField.setCanLoseFocus(false);
 
-        // Label
-        this.buttonList.add(new GuiButton(9000, leftX, 40, 120, 20, "All Enchants"));
+        // Label removed — enchant list will occupy this area
 
-        // Set manager and set selector buttons
+        // Set manager and set selector buttons — compute to ensure Delete fits on screen
         setManager = EnchantSetManager.getInstance();
-        this.buttonList.add(new GuiButton(SET_PREV_ID, leftX + 130, 15, 18, 20, "<"));
-        this.buttonList.add(new GuiButton(SET_LABEL_ID, leftX + 150, 15, 140, 20, ""));
-        this.buttonList.add(new GuiButton(SET_NEXT_ID, leftX + 294, 15, 18, 20, ">"));
+        int setPrevX = leftX + 130;
+        int setLabelX = setPrevX + 20;
+        int setLabelW = 120; // initial desired width for the label
+        int setNextW = 18;
+        int setNewW = 60;
+        int setDeleteW = 60;
+
+        // compute available space and shrink label if needed so Delete doesn't overflow
+        int spacing1 = 4; // between label and next
+        int spacing2 = 8; // between next and new
+        int spacing3 = 8; // between new and delete
+        int totalNeeded = 18 + (setLabelW) + spacing1 + setNextW + spacing2 + setNewW + spacing3 + setDeleteW;
+        int startX = setPrevX;
+        int maxRight = this.width - 10;
+        if (startX + totalNeeded > maxRight) {
+            int overflow = (startX + totalNeeded) - maxRight;
+            setLabelW = Math.max(40, setLabelW - overflow);
+            totalNeeded = 18 + (setLabelW) + spacing1 + setNextW + spacing2 + setNewW + spacing3 + setDeleteW;
+        }
+
+        int setNextX = setLabelX + setLabelW + spacing1;
+        int setNewX = setNextX + setNextW + spacing2;
+        int setDeleteX = setNewX + setNewW + spacing3;
+
+        this.buttonList.add(new GuiButton(SET_PREV_ID, setPrevX, 15, 18, 20, "<"));
+        this.buttonList.add(new GuiButton(SET_LABEL_ID, setLabelX, 15, setLabelW, 20, ""));
+        this.buttonList.add(new GuiButton(SET_NEXT_ID, setNextX, 15, setNextW, 20, ">"));
         // place New and Delete on the first row next to the set selector
-        this.buttonList.add(new GuiButton(SET_NEW_ID, leftX + 320, 15, 60, 20, "New Set"));
-        this.buttonList.add(new GuiButton(SET_DELETE_ID, leftX + 386, 15, 60, 20, "Delete"));
+        this.buttonList.add(new GuiButton(SET_NEW_ID, setNewX, 15, setNewW, 20, "New Set"));
+        this.buttonList.add(new GuiButton(SET_DELETE_ID, setDeleteX, 15, setDeleteW, 20, "Delete"));
 
         // populate GUI from active set
         loadActiveSetToGui();
@@ -137,9 +161,13 @@ public class GuiDesiredEnchants extends GuiScreen {
                 for (int j = 0; j < list.size(); j++) slotEnchants[i].add(list.get(j));
             }
         }
-        // update label on GUI
+        // update label on GUI (truncate to fit the button width)
         GuiButton labelBtn = getButtonById(SET_LABEL_ID);
-        if (labelBtn != null) labelBtn.displayString = active.name;
+        if (labelBtn != null) {
+            int avail = Math.max(4, labelBtn.width - 8);
+            String disp = this.fontRendererObj.trimStringToWidth(active.name, avail);
+            labelBtn.displayString = disp;
+        }
         // reset create UI state
         creatingNew = false;
         GuiButton newBtn = getButtonById(SET_NEW_ID);
@@ -475,7 +503,7 @@ public class GuiDesiredEnchants extends GuiScreen {
         // Enchant list layout (vertical)
         int centerX = this.width / 2;
         int leftX = centerX - 200; // keep in sync with initGui's leftX
-        int listStartY = 65;
+        int listStartY = 40;
         int bottomLimit = this.height - 10;
         int viewHeight = bottomLimit - listStartY;
         int totalListHeight = enchantButtons.size() * 22;
@@ -553,6 +581,10 @@ public class GuiDesiredEnchants extends GuiScreen {
 
         // Draw header and default components
         this.drawCenteredString(this.fontRendererObj, "Select Desired Enchants (click enchant, then click a piece)", this.width / 2, 5, 0xFFFFFF);
+
+        // prevent default button text for enchant list so we can draw those names at a smaller scale
+        for (GuiEnchantSelectButton b : enchantButtons) b.displayString = "";
+
         super.drawScreen(mouseX, mouseY, partialTicks);
 
         // Highlight selected enchant button and highlight all slot buttons when an enchant is selected
@@ -599,6 +631,22 @@ public class GuiDesiredEnchants extends GuiScreen {
 
             drawRect(scrollBarX, thumbY, scrollBarX + scrollBarWidth, thumbY + thumbHeight, 0xFFC0C0C0);
         }
+
+        // Draw enchant names at a slightly reduced scale (only the left list)
+        float s = 0.80f;
+        float inv = 1.0f / s;
+        GL11.glPushMatrix();
+        GL11.glScalef(s, s, 1f);
+        for (GuiEnchantSelectButton b : enchantButtons) {
+            if (!b.visible) continue;
+            int gi = b.globalIndex;
+            String color = gi >= 0 && gi < allEnchantDefs.size() ? rarityColorCode(allEnchantDefs.get(gi)) : "";
+            String text = color + b.enchantName;
+            int tx = (int)((b.xPosition + 4) * inv);
+            int ty = (int)((b.yPosition + (b.height / 2) - (this.fontRendererObj.FONT_HEIGHT / 2)) * inv);
+            this.fontRendererObj.drawStringWithShadow(text, tx, ty, 0xFFFFFF);
+        }
+        GL11.glPopMatrix();
     }
 
     private static class GuiEnchantSelectButton extends GuiButton {
