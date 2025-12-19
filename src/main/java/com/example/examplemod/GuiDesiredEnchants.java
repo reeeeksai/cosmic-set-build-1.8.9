@@ -27,10 +27,8 @@ public class GuiDesiredEnchants extends GuiScreen {
     private static final int SET_NEW_ID = 6003;
     private static final int SET_DELETE_ID = 6005;
 
-    private final List<GuiEnchantSelectButton> enchantButtons = new ArrayList<GuiEnchantSelectButton>();
+    private GuiEnchantPanel enchantPanel;
     private final List<GuiTagButton> tagButtons = new ArrayList<GuiTagButton>();
-    private GuiTextField searchField;
-    private int scrollOffset = 0;
     private int slotScrollOffset = 0;
 
     // per-slot assigned enchants (6 slots now: Helmet, Chestplate, Leggings, Boots, Sword, Axe)
@@ -53,7 +51,6 @@ public class GuiDesiredEnchants extends GuiScreen {
     public void initGui() {
 
         this.buttonList.clear();
-        enchantButtons.clear();
         tagButtons.clear();
         selectedEnchant = null;
 
@@ -62,12 +59,10 @@ public class GuiDesiredEnchants extends GuiScreen {
         int centerX = this.width / 2;
         int leftX = centerX - 200;
 
-        // Search Bar
-        this.searchField = new GuiTextField(8000, this.fontRendererObj, leftX, 15, 120, 20);
-        this.searchField.setFocused(true);
-        this.searchField.setCanLoseFocus(false);
-
-        // Label removed — enchant list will occupy this area
+        // create reusable enchant panel (search + list + scrollbar)
+        enchantPanel = new GuiEnchantPanel(this);
+        int listStartY = 40; // align with set selector row
+        int viewHeight = Math.max(40, this.height - 10 - listStartY);
 
         // Set manager and set selector buttons — compute to ensure Delete fits on screen
         setManager = EnchantSetManager.getInstance();
@@ -112,7 +107,10 @@ public class GuiDesiredEnchants extends GuiScreen {
             @Override public int compare(EnchantDef a, EnchantDef b) { return a.name.compareToIgnoreCase(b.name); }
         });
 
-        updateFilteredButtons();
+        // build colored display names and initialize panel now that we have enchant defs
+        List<String> displayNames = new ArrayList<String>();
+        for (EnchantDef d : allEnchantDefs) displayNames.add(d != null ? rarityColorCode(d) + d.name : "");
+        if (enchantPanel != null) enchantPanel.init(leftX, listStartY, viewHeight, allEnchantDefs, displayNames, this.fontRendererObj, this.buttonList);
 
         // Initialize slot buttons (smaller so they fit)
         int smallW = 120;
@@ -143,7 +141,6 @@ public class GuiDesiredEnchants extends GuiScreen {
         ));
 
         updateSlotButtonsText();
-        updateTagButtons();
     }
 
     private void loadActiveSetToGui() {
@@ -212,28 +209,10 @@ public class GuiDesiredEnchants extends GuiScreen {
     }
 
     private void updateFilteredButtons() {
-        // remove old enchant buttons
-        this.buttonList.removeAll(enchantButtons);
-        enchantButtons.clear();
-
-        int centerX = this.width / 2;
-        int leftX = centerX - 200;
-        int id = 0;
-        String query = this.searchField != null ? this.searchField.getText().toLowerCase() : "";
-
-        for (int i = 0; i < allEnchantDefs.size(); i++) {
-            EnchantDef def = allEnchantDefs.get(i);
-            String ench = def.name;
-            if (query.isEmpty() || ench.toLowerCase().contains(query)) {
-                String color = rarityColorCode(def);
-                String display = color + ench;
-                GuiEnchantSelectButton btn = new GuiEnchantSelectButton(ENCHANT_ID_BASE + id++, leftX, 0, 120, 20, display, ench, i);
-                this.buttonList.add(btn);
-                enchantButtons.add(btn);
-            }
+        // delegate to reusable panel
+        if (enchantPanel != null) {
+            enchantPanel.updateFilteredButtons();
         }
-
-        updateTagButtons();
     }
 
     /**
@@ -241,34 +220,52 @@ public class GuiDesiredEnchants extends GuiScreen {
      * Tag positions are updated in drawScreen; we only keep them in buttonList for click handling.
      */
     private void updateTagButtons() {
-        // remove old tag buttons from buttonList
+        // Remove any existing tag buttons and keep list empty.
         this.buttonList.removeAll(tagButtons);
         tagButtons.clear();
-
-        // For each slot, for each assigned enchant, create two buttons (label and remove)
-        for (int slot = 0; slot < slotEnchants.length; slot++) {
-            List<String> assigned = slotEnchants[slot];
-            for (String enchName : assigned) {
-                int globalIndex = getEnchantGlobalIndex(enchName);
-                if (globalIndex < 0) continue;
-                int baseId = TAG_ID_BASE + (slot * 1000) + (globalIndex * 2);
-                // placeholder positions; will be set in drawScreen()
-                String tagColor = "";
-                int gi = getEnchantGlobalIndex(enchName);
-                if (gi >= 0) tagColor = rarityColorCode(allEnchantDefs.get(gi));
-                GuiTagButton labelBtn = new GuiTagButton(baseId + 0, 0, 0, 100, 16, tagColor + enchName, slot, enchName, false);
-                GuiTagButton removeBtn = new GuiTagButton(baseId + 1, 0, 0, 16, 16, "x", slot, enchName, true);
-                this.buttonList.add(labelBtn);
-                this.buttonList.add(removeBtn);
-                tagButtons.add(labelBtn);
-                tagButtons.add(removeBtn);
-            }
-        }
     }
 
     private int getEnchantGlobalIndex(String name) {
         for (int i = 0; i < allEnchantDefs.size(); i++) if (allEnchantDefs.get(i).name.equals(name)) return i;
         return -1;
+    }
+
+    // Accessors for other GUIs
+    public List<EnchantDef> getAllEnchantDefs() {
+        return allEnchantDefs;
+    }
+
+    public String getColoredName(EnchantDef def) {
+        return rarityColorCode(def) + (def != null ? def.name : "");
+    }
+
+    public List<String> getSlotEnchants(int idx) {
+        return slotEnchants[idx];
+    }
+
+    public void addEnchantToSlot(int idx, String enchName) {
+        if (enchName == null) return;
+        List<String> lst = slotEnchants[idx];
+        if (!lst.contains(enchName)) {
+            lst.add(enchName);
+            updateTagButtons();
+            saveGuiToActiveSet();
+        }
+    }
+
+    public void removeEnchantFromSlot(int idx, String enchName) {
+        if (enchName == null) return;
+        List<String> lst = slotEnchants[idx];
+        if (lst.remove(enchName)) {
+            updateTagButtons();
+            saveGuiToActiveSet();
+        }
+    }
+
+    public boolean enchantAppliesToName(String name, SlotType st) {
+        int gi = getEnchantGlobalIndex(name);
+        if (gi < 0) return false;
+        return enchantAppliesTo(allEnchantDefs.get(gi), st);
     }
 
     private boolean enchantAppliesTo(EnchantDef def, SlotType st) {
@@ -309,40 +306,13 @@ public class GuiDesiredEnchants extends GuiScreen {
     @Override
     public void handleMouseInput() throws IOException {
         super.handleMouseInput();
-        int dWheel = Mouse.getEventDWheel();
-        if (dWheel != 0) {
-            int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
-            int centerX = this.width / 2;
-
-            // scroll enchant list (left side)
-            if (mouseX < centerX - 60) {
-                if (dWheel > 0) scrollOffset -= 22;
-                else scrollOffset += 22;
-
-                int listLength = enchantButtons.size() * 22;
-                int viewHeight = this.height - 75;
-                if (scrollOffset < 0) scrollOffset = 0;
-                if (listLength > viewHeight && scrollOffset > listLength - viewHeight) scrollOffset = listLength - viewHeight;
-                if (listLength <= viewHeight) scrollOffset = 0;
-            } else {
-                // slot horizontal scroll (if ever needed)
-                if (dWheel > 0) slotScrollOffset -= 20;
-                else slotScrollOffset += 20;
-                int totalSlotWidth = 6 * 160;
-                int slotViewX = (this.width / 2) - 50;
-                int slotViewW = this.width - slotViewX - 20;
-                if (slotScrollOffset < 0) slotScrollOffset = 0;
-                if (totalSlotWidth > slotViewW && slotScrollOffset > totalSlotWidth - slotViewW) slotScrollOffset = totalSlotWidth - slotViewW;
-                if (totalSlotWidth <= slotViewW) slotScrollOffset = 0;
-            }
-        }
+        if (enchantPanel != null) enchantPanel.handleMouseInput();
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (this.searchField.textboxKeyTyped(typedChar, keyCode)) {
-            scrollOffset = 0;
-            updateFilteredButtons();
+        if (enchantPanel != null && enchantPanel.textboxKeyTyped(typedChar, keyCode)) {
+            // handled by panel
         } else {
             super.keyTyped(typedChar, keyCode);
         }
@@ -350,7 +320,7 @@ public class GuiDesiredEnchants extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        this.searchField.mouseClicked(mouseX, mouseY, mouseButton);
+        if (enchantPanel != null) enchantPanel.mouseClicked(mouseX, mouseY, mouseButton);
         super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
@@ -380,12 +350,11 @@ public class GuiDesiredEnchants extends GuiScreen {
             GuiButton nb = getButtonById(SET_NEW_ID);
             if (!creatingNew) {
                 creatingNew = true;
-                this.searchField.setText("");
-                this.searchField.setFocused(true);
+                if (enchantPanel != null) { enchantPanel.setText(""); enchantPanel.setFocused(true); }
                 if (nb != null) nb.displayString = "Create";
                 return;
             } else {
-                String name = this.searchField.getText();
+                String name = enchantPanel != null ? enchantPanel.getText() : null;
                 if (name == null || name.trim().length() == 0) name = "New Set";
                 EnchantSet s = setManager.createSet(name);
                 setManager.setActiveSet(s.id);
@@ -410,48 +379,20 @@ public class GuiDesiredEnchants extends GuiScreen {
             return;
         }
 
-        // enchant selected -> highlight enchant and slot buttons (no auto-add)
-        if (button.id >= ENCHANT_ID_BASE && button.id < ENCHANT_ID_BASE + 10000) {
-            for (GuiEnchantSelectButton b : enchantButtons) {
-                if (b.id == button.id) {
-                    // toggle selection: clicking the same enchant again unselects it
-                    if (selectedEnchant != null && selectedEnchant.equals(b.enchantName)) {
-                        selectedEnchant = null;
-                    } else {
-                        selectedEnchant = b.enchantName;
-                    }
-                    return;
-                }
+        // enchant selected via panel -> highlight enchant and slot buttons
+        if (enchantPanel != null) {
+            String clicked = enchantPanel.onButtonPressed(button);
+            if (clicked != null) {
+                if (selectedEnchant != null && selectedEnchant.equals(clicked)) selectedEnchant = null;
+                else selectedEnchant = clicked;
+                return;
             }
         }
 
-        // slot clicked: add selected enchant to that slot (as its own box under the slot)
+        // slot clicked: open per-piece enchant editor GUI
         if (button.id >= SLOT_ID_BASE && button.id <= SLOT_ID_BASE + 5) {
-            if (selectedEnchant != null) {
-                int idx = button.id - SLOT_ID_BASE;
-                // check if the selected enchant is allowed on this slot
-                int gidx = getEnchantGlobalIndex(selectedEnchant);
-                boolean allowed = true;
-                if (gidx >= 0) {
-                    EnchantDef def = allEnchantDefs.get(gidx);
-                    allowed = enchantAppliesTo(def, SlotType.values()[idx]);
-                }
-                if (!allowed) {
-                    this.mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText("That enchant cannot be applied to this piece."));
-                    selectedEnchant = null;
-                    return;
-                }
-
-                List<String> list = slotEnchants[idx];
-                if (!list.contains(selectedEnchant)) {
-                    list.add(selectedEnchant);
-                    updateTagButtons();
-                    // after placing the enchant, unselect it
-                    selectedEnchant = null;
-                    // autosave
-                    saveGuiToActiveSet();
-                }
-            }
+            int idx = button.id - SLOT_ID_BASE;
+            this.mc.displayGuiScreen(new GuiPieceEnchants(this, idx));
             return;
         }
 
@@ -500,23 +441,13 @@ public class GuiDesiredEnchants extends GuiScreen {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
 
-        // Enchant list layout (vertical)
+        // Enchant panel (search + list + scrollbar)
         int centerX = this.width / 2;
         int leftX = centerX - 200; // keep in sync with initGui's leftX
         int listStartY = 40;
         int bottomLimit = this.height - 10;
         int viewHeight = bottomLimit - listStartY;
-        int totalListHeight = enchantButtons.size() * 22;
-
-        for (int i = 0; i < enchantButtons.size(); i++) {
-            GuiEnchantSelectButton btn = enchantButtons.get(i);
-            int relY = (i * 22) - scrollOffset;
-            btn.yPosition = listStartY + relY;
-            btn.xPosition = leftX; // align with "All Enchants" label
-            btn.visible = btn.yPosition >= listStartY && btn.yPosition + 20 <= bottomLimit;
-        }
-
-        this.searchField.drawTextBox();
+        if (enchantPanel != null) enchantPanel.drawPanel(mouseX, mouseY, partialTicks);
 
         // Slot buttons arranged 2-per-row (3 rows). placed to the right of the "All Enchants" label (leftX + 120 + gap)
         int slotWidth = helmetButton.width; // use actual button width (smaller)
@@ -539,62 +470,19 @@ public class GuiDesiredEnchants extends GuiScreen {
 
         // marking UI removed from this screen; inventory overlay shows marks instead
 
-        // Rebuild tag buttons positions now that slot positions are known
-        updateTagButtons();
-
-        // Position tag buttons under each slot: stacked vertically per-slot
-        for (GuiTagButton tb : tagButtons) {
-            int slot = tb.slotIndex;
-            if (slot < 0 || slot >= slots.length) {
-                tb.visible = false;
-                continue;
-            }
-            GuiButton slotBtn = slots[slot];
-            List<String> assigned = slotEnchants[slot];
-            int posIndex = assigned.indexOf(tb.enchantName);
-            if (posIndex < 0) {
-                tb.visible = false;
-                continue;
-            }
-            int baseX = slotBtn.xPosition;
-            int baseY = slotBtn.yPosition + slotBtn.height + 6;
-            int fontW = this.fontRendererObj.getStringWidth(tb.enchantName);
-            // cap label width to slot button width so tag stays within screen
-            int labelWidth = Math.min(slotBtn.width, Math.max(40, fontW + 8));
-            int gap = 4;
-            int y = baseY + (posIndex * (16 + 4));
-            if (!tb.isRemove) {
-                tb.xPosition = baseX;
-                tb.yPosition = y;
-                tb.width = labelWidth;
-                tb.height = 16;
-                tb.visible = true;
-            } else {
-                int removeX = baseX + labelWidth + gap;
-                tb.xPosition = removeX;
-                tb.yPosition = y;
-                tb.width = 16;
-                tb.height = 16;
-                tb.visible = true;
-            }
-        }
+        // Per-piece enchant lists are not shown on this screen anymore.
+        // tagButtons are kept empty so no labels are rendered here.
 
         // Draw header and default components
         this.drawCenteredString(this.fontRendererObj, "Select Desired Enchants (click enchant, then click a piece)", this.width / 2, 5, 0xFFFFFF);
 
-        // prevent default button text for enchant list so we can draw those names at a smaller scale
-        for (GuiEnchantSelectButton b : enchantButtons) b.displayString = "";
-
         super.drawScreen(mouseX, mouseY, partialTicks);
+
+        // draw scaled enchant labels from panel on top of default button rendering
+        if (enchantPanel != null) enchantPanel.drawScaledLabels(mouseX, mouseY, partialTicks);
 
         // Highlight selected enchant button and highlight all slot buttons when an enchant is selected
         if (selectedEnchant != null) {
-            // highlight enchant
-            for (GuiEnchantSelectButton b : enchantButtons) {
-                if (selectedEnchant.equals(b.enchantName) && b.visible) {
-                    drawRect(b.xPosition - 2, b.yPosition - 2, b.xPosition + b.width + 2, b.yPosition + b.height + 2, 0x80FFD700);
-                }
-            }
             // highlight all slot buttons to indicate they can receive the enchant
             for (GuiButton s : slots) {
                 drawRect(s.xPosition - 2, s.yPosition - 2, s.xPosition + s.width + 2, s.yPosition + s.height + 2, 0x40FFD700);
@@ -616,37 +504,9 @@ public class GuiDesiredEnchants extends GuiScreen {
             this.fontRendererObj.drawString(info, infoX, infoY, 0xFFFFFF);
         }
 
-        // Draw scrollbars for enchant list
-        if (totalListHeight > viewHeight) {
-            int scrollBarX = leftX + 124;
-            int scrollBarWidth = 6;
-            drawRect(scrollBarX, listStartY, scrollBarX + scrollBarWidth, listStartY + viewHeight, 0x80000000);
+        // enchant panel handles its own scrollbar drawing
 
-            int thumbHeight = (int) ((float) viewHeight * viewHeight / totalListHeight);
-            if (thumbHeight < 32) thumbHeight = 32;
-            if (thumbHeight > viewHeight) thumbHeight = viewHeight;
-
-            int maxScroll = totalListHeight - viewHeight;
-            int thumbY = listStartY + (maxScroll == 0 ? 0 : (int) ((float) scrollOffset / maxScroll * (viewHeight - thumbHeight)));
-
-            drawRect(scrollBarX, thumbY, scrollBarX + scrollBarWidth, thumbY + thumbHeight, 0xFFC0C0C0);
-        }
-
-        // Draw enchant names at a slightly reduced scale (only the left list)
-        float s = 0.80f;
-        float inv = 1.0f / s;
-        GL11.glPushMatrix();
-        GL11.glScalef(s, s, 1f);
-        for (GuiEnchantSelectButton b : enchantButtons) {
-            if (!b.visible) continue;
-            int gi = b.globalIndex;
-            String color = gi >= 0 && gi < allEnchantDefs.size() ? rarityColorCode(allEnchantDefs.get(gi)) : "";
-            String text = color + b.enchantName;
-            int tx = (int)((b.xPosition + 4) * inv);
-            int ty = (int)((b.yPosition + (b.height / 2) - (this.fontRendererObj.FONT_HEIGHT / 2)) * inv);
-            this.fontRendererObj.drawStringWithShadow(text, tx, ty, 0xFFFFFF);
-        }
-        GL11.glPopMatrix();
+        // enchant list rendering handled by GuiEnchantPanel
     }
 
     private static class GuiEnchantSelectButton extends GuiButton {
