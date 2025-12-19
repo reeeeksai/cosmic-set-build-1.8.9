@@ -109,7 +109,7 @@ public class GuiDesiredEnchants extends GuiScreen {
 
         // build colored display names and initialize panel now that we have enchant defs
         List<String> displayNames = new ArrayList<String>();
-        for (EnchantDef d : allEnchantDefs) displayNames.add(d != null ? rarityColorCode(d) + d.name : "");
+        for (EnchantDef d : allEnchantDefs) displayNames.add(d != null ? EnchantRenderUtils.rarityColorCode(d) + d.name : "");
         if (enchantPanel != null) enchantPanel.init(leftX, listStartY, viewHeight, allEnchantDefs, displayNames, this.fontRendererObj, this.buttonList);
 
         // Initialize slot buttons (smaller so they fit)
@@ -236,7 +236,7 @@ public class GuiDesiredEnchants extends GuiScreen {
     }
 
     public String getColoredName(EnchantDef def) {
-        return rarityColorCode(def) + (def != null ? def.name : "");
+        return EnchantRenderUtils.rarityColorCode(def) + (def != null ? def.name : "");
     }
 
     public List<String> getSlotEnchants(int idx) {
@@ -288,20 +288,7 @@ public class GuiDesiredEnchants extends GuiScreen {
         }
     }
 
-    private String rarityColorCode(EnchantDef def) {
-        if (def == null || def.rarity == null) return "";
-        switch (def.rarity) {
-            case COMMON: return "\u00A7l"; // bold default (white)
-            case UNIQUE: return "\u00A7a\u00A7l"; // bright green + bold (like Nimble)
-            case ELITE: return "\u00A7b\u00A7l"; // aqua + bold
-            case ULTIMATE: return "\u00A7e\u00A7l"; // yellow + bold (like Ender Walker)
-            case LEGENDARY: return "\u00A76\u00A7l"; // gold + bold
-            case MASTERY: return "\u00A74\u00A7l"; // dark red + bold
-            case SOUL: return  "\u00A7c\u00A7l"; // red + bold
-            case HEROIC: return "\u00A7d\u00A7l"; // light purple + bold
-            default: return "";
-        }
-    }
+    // Rarity color codes moved to EnchantRenderUtils
 
     @Override
     public void handleMouseInput() throws IOException {
