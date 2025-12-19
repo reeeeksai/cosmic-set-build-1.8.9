@@ -197,7 +197,9 @@ public class GuiDesiredEnchants extends GuiScreen {
             EnchantDef def = allEnchantDefs.get(i);
             String ench = def.name;
             if (query.isEmpty() || ench.toLowerCase().contains(query)) {
-                GuiEnchantSelectButton btn = new GuiEnchantSelectButton(ENCHANT_ID_BASE + id++, leftX, 0, 120, 20, ench, i);
+                String color = rarityColorCode(def);
+                String display = color + ench;
+                GuiEnchantSelectButton btn = new GuiEnchantSelectButton(ENCHANT_ID_BASE + id++, leftX, 0, 120, 20, display, ench, i);
                 this.buttonList.add(btn);
                 enchantButtons.add(btn);
             }
@@ -223,7 +225,10 @@ public class GuiDesiredEnchants extends GuiScreen {
                 if (globalIndex < 0) continue;
                 int baseId = TAG_ID_BASE + (slot * 1000) + (globalIndex * 2);
                 // placeholder positions; will be set in drawScreen()
-                GuiTagButton labelBtn = new GuiTagButton(baseId + 0, 0, 0, 100, 16, enchName, slot, enchName, false);
+                String tagColor = "";
+                int gi = getEnchantGlobalIndex(enchName);
+                if (gi >= 0) tagColor = rarityColorCode(allEnchantDefs.get(gi));
+                GuiTagButton labelBtn = new GuiTagButton(baseId + 0, 0, 0, 100, 16, tagColor + enchName, slot, enchName, false);
                 GuiTagButton removeBtn = new GuiTagButton(baseId + 1, 0, 0, 16, 16, "x", slot, enchName, true);
                 this.buttonList.add(labelBtn);
                 this.buttonList.add(removeBtn);
@@ -255,6 +260,21 @@ public class GuiDesiredEnchants extends GuiScreen {
                 return def.appliesTo.contains(SlotGroup.AXE) || def.appliesTo.contains(SlotGroup.WEAPON);
             default:
                 return false;
+        }
+    }
+
+    private String rarityColorCode(EnchantDef def) {
+        if (def == null || def.rarity == null) return "";
+        switch (def.rarity) {
+            case COMMON: return "\u00A7l"; // bold default (white)
+            case UNIQUE: return "\u00A7a\u00A7l"; // bright green + bold (like Nimble)
+            case ELITE: return "\u00A7b\u00A7l"; // aqua + bold
+            case ULTIMATE: return "\u00A7e\u00A7l"; // yellow + bold (like Ender Walker)
+            case LEGENDARY: return "\u00A76\u00A7l"; // gold + bold
+            case MASTERY: return "\u00A74\u00A7l"; // dark red + bold
+            case SOUL: return  "\u00A7c\u00A7l"; // red + bold
+            case HEROIC: return "\u00A7d\u00A7l"; // light purple + bold
+            default: return "";
         }
     }
 
@@ -584,8 +604,8 @@ public class GuiDesiredEnchants extends GuiScreen {
     private static class GuiEnchantSelectButton extends GuiButton {
         public final String enchantName;
         public final int globalIndex;
-        public GuiEnchantSelectButton(int id, int x, int y, int w, int h, String enchantName, int globalIndex) {
-            super(id, x, y, w, h, enchantName);
+        public GuiEnchantSelectButton(int id, int x, int y, int w, int h, String display, String enchantName, int globalIndex) {
+            super(id, x, y, w, h, display);
             this.enchantName = enchantName;
             this.globalIndex = globalIndex;
         }
