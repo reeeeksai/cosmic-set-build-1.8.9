@@ -21,7 +21,7 @@ public class GuiPieceEnchants extends GuiScreen {
     private GuiEnchantPanel panel;
     private List<GuiButton> removeButtons = new ArrayList<GuiButton>();
     private static final int REMOVE_BASE = 9100;
-    private static final int BACK_ID = 9110;
+    private static final int BACK_ID = 9000;
 
     public GuiPieceEnchants(GuiDesiredEnchants parent, int slotIndex) {
         this.parentGui = parent;
@@ -63,12 +63,12 @@ public class GuiPieceEnchants extends GuiScreen {
 
         // right column
         int centerX = this.width / 2;
-        int rightX = centerX + 40;
         int y = 50;
         List<String> assigned = parentGui.getSlotEnchants(slotIndex);
         for (int i = 0; i < assigned.size(); i++) {
             int id = REMOVE_BASE + i;
-            GuiButton b = new GuiButton(id, rightX + 110, y, 16, 16, "x");
+            // place the small remove button at the far right edge
+            GuiButton b = new GuiButton(id, this.width - 26, y, 16, 16, "x");
             this.buttonList.add(b);
             removeButtons.add(b);
             y += 20;
@@ -100,7 +100,10 @@ public class GuiPieceEnchants extends GuiScreen {
         String clicked = panel != null ? panel.onButtonPressed(button) : null;
         if (clicked != null) {
             // add to parent slot
-            parentGui.addEnchantToSlot(slotIndex, clicked);
+            boolean added = parentGui.addEnchantToSlot(slotIndex, clicked);
+            if (added) {
+                MarkedSlots.getInstance().setMarked(slotIndex, true);
+            }
             updateRemoveButtons();
             return;
         }
@@ -131,16 +134,26 @@ public class GuiPieceEnchants extends GuiScreen {
 
         // draw right-side assigned enchant labels
         int centerX = this.width / 2;
-        int rightX = centerX + 40;
+        int leftX = centerX - 200;
         int y = 50;
         List<String> assigned = parentGui.getSlotEnchants(slotIndex);
+
+        // header: show which piece and count, left-aligned near the enchant list
+        String[] niceNames = new String[]{"Helmet","Chestplate","Leggings","Boots","Sword","Axe"};
+        String slotLabel = (slotIndex >= 0 && slotIndex < niceNames.length) ? niceNames[slotIndex] : ("Slot " + slotIndex);
+        int count = assigned.size();
+        String header = slotLabel + " - " + count + " enchant" + (count == 1 ? "" : "s");
+        // position header to the right of the enchant panel (panel width = 120) with a small gap
+        int middleLeft = leftX + 120 + 12;
+        this.fontRendererObj.drawStringWithShadow(header, middleLeft, 26, 0xFFFFA500);
+
+        // draw assigned enchant names left-aligned near the enchant list (start at middleLeft)
         for (int i = 0; i < assigned.size(); i++) {
             String name = assigned.get(i);
-            // colored display if known
             EnchantDef def = null;
             for (EnchantDef d : parentGui.getAllEnchantDefs()) if (d.name.equals(name)) { def = d; break; }
             String text = def != null ? parentGui.getColoredName(def) : name;
-            this.fontRendererObj.drawStringWithShadow(text, rightX + 6, y + 2, 0xFFFFFF);
+            this.fontRendererObj.drawStringWithShadow(text, middleLeft, y + 2, 0xFFFFFF);
             y += 20;
         }
 

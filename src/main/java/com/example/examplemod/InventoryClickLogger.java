@@ -48,7 +48,7 @@ public class InventoryClickLogger {
     private void processClick() {
         Minecraft mc = Minecraft.getMinecraft();
         if (!(mc.currentScreen instanceof GuiContainer)) {
-            mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText("Not in an inventory screen."));
+            // suppressed chat: not in inventory
             return;
         }
 
@@ -74,7 +74,7 @@ public class InventoryClickLogger {
         int relY = mouseY - guiTop;
 
         // debug: show computed absolute and relative mouse coords + gui offsets
-        mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText("Debug: mouseX=" + mouseX + ", mouseY=" + mouseY + ", guiLeft=" + guiLeft + ", guiTop=" + guiTop + ", relX=" + relX + ", relY=" + relY));
+        // suppressed debug chat
 
         // debug: list all slot positions (index:x,y,item)
         for (int i = 0; i < gui.inventorySlots.inventorySlots.size(); i++) {
@@ -83,7 +83,7 @@ public class InventoryClickLogger {
             Slot s = (Slot) o;
             ItemStack st = s.getStack();
             String nm = st == null ? "<empty>" : st.getDisplayName();
-            mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText("Slot[" + i + "]=" + s.xDisplayPosition + "," + s.yDisplayPosition + " -> " + nm));
+            // suppressed debug chat for slot positions
         }
 
         for (int i = 0; i < gui.inventorySlots.inventorySlots.size(); i++) {
@@ -94,7 +94,7 @@ public class InventoryClickLogger {
             int sy = slot.yDisplayPosition;
             if (relX >= sx && relX < sx + 16 && relY >= sy && relY < sy + 16) {
                 ItemStack stack = slot.getStack();
-                mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText("Debug: clicked slot index=" + i + " pos=" + sx + "," + sy + " item=" + (stack == null ? "<empty>" : stack.getDisplayName())));
+                // suppressed debug chat for clicked slot
                 // determine which logical slot index to toggle (0..5)
                 int markIndex = -1;
                 if (stack != null) {
@@ -142,7 +142,7 @@ public class InventoryClickLogger {
                         case 4: lbl = "Sword(held)"; break;
                         case 5: lbl = "Axe(held)"; break;
                     }
-                    mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText((now ? "Marked " : "Unmarked ") + lbl));
+                    // suppressed mark/unmark chat
                     // log item info immediately
                     logItemStack(stack);
                     return;
@@ -154,7 +154,7 @@ public class InventoryClickLogger {
             }
         }
 
-        mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText("No item slot clicked."));
+        // suppressed chat: no item slot clicked
     }
 
     private void logItemStack(ItemStack stack) {

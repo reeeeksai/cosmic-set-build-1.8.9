@@ -219,7 +219,7 @@ public class GuiDesiredEnchants extends GuiScreen {
      * Rebuild tag (label + remove) buttons for every assigned enchant under each slot.
      * Tag positions are updated in drawScreen; we only keep them in buttonList for click handling.
      */
-    private void updateTagButtons() {
+    public void updateTagButtons() {
         // Remove any existing tag buttons and keep list empty.
         this.buttonList.removeAll(tagButtons);
         tagButtons.clear();
@@ -243,14 +243,52 @@ public class GuiDesiredEnchants extends GuiScreen {
         return slotEnchants[idx];
     }
 
-    public void addEnchantToSlot(int idx, String enchName) {
-        if (enchName == null) return;
+    public boolean addEnchantToSlot(int idx, String enchName) {
+        if (enchName == null) return false;
         List<String> lst = slotEnchants[idx];
+        // detect build-from conflicts: replace base enchants if the new enchant is an upgrade
+        int newGi = getEnchantGlobalIndex(enchName);
+        EnchantDef newDef = newGi >= 0 ? allEnchantDefs.get(newGi) : null;
+        List<String> warnings = new ArrayList<String>();
+        List<String> replaced = new ArrayList<String>();
+        if (newDef != null) {
+            String newId = newDef.id;
+            String newBuilds = newDef.buildsFromId;
+            // If new builds from an existing enchant on the piece, remove that existing enchant (auto-upgrade)
+            if (newBuilds != null) {
+                // iterate over a copy to avoid concurrent modification
+                for (String existingName : new ArrayList<String>(lst)) {
+                    int exGi = getEnchantGlobalIndex(existingName);
+                    EnchantDef exDef = exGi >= 0 ? allEnchantDefs.get(exGi) : null;
+                    if (exDef == null) continue;
+                    if (exDef.id.equals(newBuilds)) {
+                        lst.remove(existingName);
+                        replaced.add(exDef.name);
+                    }
+                }
+            }
+            // If existing enchants build from the new one (i.e. an upgraded enchant is present),
+            // remove that upgraded enchant as well (allow replacement both ways).
+            for (String existingName : new ArrayList<String>(lst)) {
+                int exGi = getEnchantGlobalIndex(existingName);
+                EnchantDef exDef = exGi >= 0 ? allEnchantDefs.get(exGi) : null;
+                if (exDef == null) continue;
+                if (exDef.buildsFromId != null && exDef.buildsFromId.equals(newId)) {
+                    lst.remove(existingName);
+                    replaced.add(exDef.name);
+                }
+            }
+        }
+
         if (!lst.contains(enchName)) {
             lst.add(enchName);
             updateTagButtons();
             saveGuiToActiveSet();
+            // show replacements and warnings to player if any
+            // previously reported replacements/warnings to chat; now suppressed
+            return true;
         }
+        return false;
     }
 
     public void removeEnchantFromSlot(int idx, String enchName) {
@@ -376,10 +414,22 @@ public class GuiDesiredEnchants extends GuiScreen {
             }
         }
 
-        // slot clicked: open per-piece enchant editor GUI
+        // slot clicked: if an enchant is selected, add it to the clicked slot; otherwise open per-piece GUI
         if (button.id >= SLOT_ID_BASE && button.id <= SLOT_ID_BASE + 5) {
             int idx = button.id - SLOT_ID_BASE;
-            this.mc.displayGuiScreen(new GuiPieceEnchants(this, idx));
+            if (selectedEnchant != null) {
+                // only add if the selected enchant applies to this slot type
+                SlotType st = SlotType.values()[idx];
+                if (enchantAppliesToName(selectedEnchant, st)) {
+                    boolean added = addEnchantToSlot(idx, selectedEnchant);
+                    if (added) selectedEnchant = null;
+                    updateTagButtons();
+                } else {
+                    // do nothing if enchant doesn't apply
+                }
+            } else {
+                this.mc.displayGuiScreen(new GuiPieceEnchants(this, idx));
+            }
             return;
         }
 
@@ -470,9 +520,13 @@ public class GuiDesiredEnchants extends GuiScreen {
 
         // Highlight selected enchant button and highlight all slot buttons when an enchant is selected
         if (selectedEnchant != null) {
-            // highlight all slot buttons to indicate they can receive the enchant
-            for (GuiButton s : slots) {
-                drawRect(s.xPosition - 2, s.yPosition - 2, s.xPosition + s.width + 2, s.yPosition + s.height + 2, 0x40FFD700);
+            // highlight only slot buttons that can receive the selected enchant
+            for (int i = 0; i < slots.length; i++) {
+                GuiButton s = slots[i];
+                SlotType st = SlotType.values()[i];
+                if (enchantAppliesToName(selectedEnchant, st) && !slotEnchants[i].contains(selectedEnchant)) {
+                    drawRect(s.xPosition - 2, s.yPosition - 2, s.xPosition + s.width + 2, s.yPosition + s.height + 2, 0x40FFD700);
+                }
             }
         }
 
