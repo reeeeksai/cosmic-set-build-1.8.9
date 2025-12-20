@@ -156,6 +156,20 @@ public class GuiDesiredEnchants extends GuiScreen {
             if (list != null) {
                 slotEnchants[i].clear();
                 for (int j = 0; j < list.size(); j++) slotEnchants[i].add(list.get(j));
+                // sort loaded enchants by rarity priority so display/remove order is consistent
+                java.util.Collections.sort(slotEnchants[i], new java.util.Comparator<String>() {
+                    @Override public int compare(String a, String b) {
+                        int ai = getEnchantGlobalIndex(a);
+                        int bi = getEnchantGlobalIndex(b);
+                        EnchantDef ad = ai >= 0 ? allEnchantDefs.get(ai) : null;
+                        EnchantDef bd = bi >= 0 ? allEnchantDefs.get(bi) : null;
+                        int pa = ad != null ? rarityPriority(ad.rarity) : Integer.MAX_VALUE;
+                        int pb = bd != null ? rarityPriority(bd.rarity) : Integer.MAX_VALUE;
+                        if (pa != pb) return Integer.compare(pa, pb);
+                        if (ad != null && bd != null) return ad.name.compareToIgnoreCase(bd.name);
+                        return a.compareToIgnoreCase(b);
+                    }
+                });
             }
         }
         // update label on GUI (truncate to fit the button width)
@@ -230,6 +244,21 @@ public class GuiDesiredEnchants extends GuiScreen {
         return -1;
     }
 
+    private int rarityPriority(Rarity r) {
+        if (r == null) return Integer.MAX_VALUE;
+        switch (r) {
+            case MASTERY: return 0;
+            case HEROIC:  return 1;
+            case SOUL:    return 2;
+            case LEGENDARY: return 3;
+            case ULTIMATE: return 4;
+            case ELITE:   return 5;
+            case UNIQUE:  return 6;
+            case COMMON:  return 7;
+            default: return 8;
+        }
+    }
+
     // Accessors for other GUIs
     public List<EnchantDef> getAllEnchantDefs() {
         return allEnchantDefs;
@@ -281,7 +310,25 @@ public class GuiDesiredEnchants extends GuiScreen {
         }
 
         if (!lst.contains(enchName)) {
-            lst.add(enchName);
+            // enforce maximum enchants per slot (16). Note: replacements above may have freed slots.
+            if (lst.size() >= 16) {
+                return false;
+            }
+            // insert new enchant into list according to rarity priority (so display is ordered)
+            int insertAt = lst.size();
+            if (newDef != null) {
+                int newP = rarityPriority(newDef.rarity);
+                for (int i = 0; i < lst.size(); i++) {
+                    int exGi = getEnchantGlobalIndex(lst.get(i));
+                    EnchantDef exDef = exGi >= 0 ? allEnchantDefs.get(exGi) : null;
+                    int exP = exDef != null ? rarityPriority(exDef.rarity) : Integer.MAX_VALUE;
+                    if (exP > newP) { insertAt = i; break; }
+                    if (exP == newP && exDef != null && newDef != null) {
+                        if (exDef.name.compareToIgnoreCase(newDef.name) > 0) { insertAt = i; break; }
+                    }
+                }
+            }
+            lst.add(insertAt, enchName);
             updateTagButtons();
             saveGuiToActiveSet();
             // show replacements and warnings to player if any

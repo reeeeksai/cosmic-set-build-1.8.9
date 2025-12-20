@@ -61,17 +61,20 @@ public class GuiPieceEnchants extends GuiScreen {
         this.buttonList.removeAll(removeButtons);
         removeButtons.clear();
 
-        // right column
-        int centerX = this.width / 2;
-        int y = 50;
+        // compute vertical layout so up to 16 enchants fit on screen
+        // align top with the enchant panel's search field (panel.init used listStartY=40, search field is at listStartY-26)
+        int listTop = 14; // 40 - 26
+        int listBottom = Math.max(listTop + 100, this.height - 40);
+        int available = listBottom - listTop;
+        int per = Math.max(10, available / 16); // minimum spacing (smaller to fit more rows)
         List<String> assigned = parentGui.getSlotEnchants(slotIndex);
         for (int i = 0; i < assigned.size(); i++) {
             int id = REMOVE_BASE + i;
-            // place the small remove button at the far right edge
-            GuiButton b = new GuiButton(id, this.width - 26, y, 16, 16, "x");
+            int y = listTop + (i * per) + 1;
+            // place a smaller remove button at the far right edge
+            GuiButton b = new GuiButton(id, this.width - 18, y, 12, 12, "x");
             this.buttonList.add(b);
             removeButtons.add(b);
-            y += 20;
         }
     }
 
@@ -135,7 +138,11 @@ public class GuiPieceEnchants extends GuiScreen {
         // draw right-side assigned enchant labels
         int centerX = this.width / 2;
         int leftX = centerX - 200;
-        int y = 50;
+        int listTop = 14;
+        int listBottom = Math.max(listTop + 100, this.height - 40);
+        int available = listBottom - listTop;
+        int per = Math.max(10, available / 16);
+        int y = listTop;
         List<String> assigned = parentGui.getSlotEnchants(slotIndex);
 
         // header: show which piece and count, left-aligned near the enchant list
@@ -145,7 +152,11 @@ public class GuiPieceEnchants extends GuiScreen {
         String header = slotLabel + " - " + count + " enchant" + (count == 1 ? "" : "s");
         // position header to the right of the enchant panel (panel width = 120) with a small gap
         int middleLeft = leftX + 120 + 12;
-        this.fontRendererObj.drawStringWithShadow(header, middleLeft, 26, 0xFFFFA500);
+        // position header at the absolute bottom-right of the screen
+        int headerWidth = this.fontRendererObj.getStringWidth(header);
+        int headerX = this.width - headerWidth - 8;
+        int headerY = this.height - this.fontRendererObj.FONT_HEIGHT - 8;
+        this.fontRendererObj.drawStringWithShadow(header, headerX, headerY, 0xFFFFFF);
 
         // draw assigned enchant names left-aligned near the enchant list (start at middleLeft)
         for (int i = 0; i < assigned.size(); i++) {
@@ -153,8 +164,8 @@ public class GuiPieceEnchants extends GuiScreen {
             EnchantDef def = null;
             for (EnchantDef d : parentGui.getAllEnchantDefs()) if (d.name.equals(name)) { def = d; break; }
             String text = def != null ? parentGui.getColoredName(def) : name;
-            this.fontRendererObj.drawStringWithShadow(text, middleLeft, y + 2, 0xFFFFFF);
-            y += 20;
+            int drawY = listTop + (i * per);
+            this.fontRendererObj.drawStringWithShadow(text, middleLeft, drawY + 2, 0xFFFFFF);
         }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
