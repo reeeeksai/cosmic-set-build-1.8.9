@@ -38,6 +38,23 @@ public class InventoryClickLogger {
         if (event.phase != TickEvent.Phase.END) return;
         if (Minecraft.getMinecraft().thePlayer == null) return;
 
+        // Verify existing marks: if the tracked item has moved from the recorded inventory slot, clear the mark.
+        // Minecraft mc = Minecraft.getMinecraft();
+        // MarkedSlots marks = MarkedSlots.getInstance();
+        // for (int i = 0; i < 6; i++) {
+        //     if (!marks.isMarked(i)) continue;
+        //     int invIdx = marks.getMarkedInvIndex(i);
+        //     String sig = marks.getMarkedSignature(i);
+        //     if (invIdx >= 0) {
+        //         ItemStack cur = mc.thePlayer.inventory.mainInventory[invIdx];
+        //         String curSig = signatureOf(cur);
+        //         if (sig == null || (curSig == null) || !sig.equals(curSig)) {
+        //             // item moved or changed — clear mark
+        //             marks.setMarkedAt(i, false, 0,0,0,0, -1, null);
+        //         }
+        //     }
+        // }
+
         boolean down = Keyboard.isKeyDown(key.getKeyCode());
         if (down && !prevKeyDown) {
             processClick();
@@ -93,6 +110,11 @@ public class InventoryClickLogger {
             int sx = slot.xDisplayPosition;
             int sy = slot.yDisplayPosition;
             if (relX >= sx && relX < sx + 16 && relY >= sy && relY < sy + 16) {
+                // Only allow marking when clicking a slot that belongs to the player's inventory
+                if (slot.inventory != mc.thePlayer.inventory) {
+                    // not a player-invento (ery slot.g. crafting output, container chest), ignore
+                    return;
+                }
                 ItemStack stack = slot.getStack();
                 // suppressed debug chat for clicked slot
                 // determine which logical slot index to toggle (0..5)
@@ -129,9 +151,15 @@ public class InventoryClickLogger {
                     boolean now = marks.isMarked(markIndex);
                     // store slot rectangle when marked so overlay can render
                     if (now) {
-                        marks.setMarkedAt(markIndex, true, guiLeft + sx, guiTop + sy, 16, 16);
+                        // determine which player inventory index this corresponds to (object identity)
+                        int invIndex = -1;
+                        for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
+                            if (mc.thePlayer.inventory.mainInventory[k] == stack) { invIndex = k; break; }
+                        }
+                        String sig = signatureOf(stack);
+                        marks.setMarkedAt(markIndex, true, guiLeft + sx, guiTop + sy, 16, 16, invIndex, sig);
                     } else {
-                        marks.setMarkedAt(markIndex, false, 0,0,0,0);
+                        marks.setMarkedAt(markIndex, false, 0,0,0,0, -1, null);
                     }
                     String lbl = "";
                     switch (markIndex) {
@@ -186,5 +214,22 @@ public class InventoryClickLogger {
         } else {
             System.out.println("No NBT data on this item.");
         }
+    }
+
+    private static String signatureOf(ItemStack stack) {
+        if (stack == null) return null;
+        StringBuilder sb = new StringBuilder();
+        try {
+            sb.append(stack.getItem().getUnlocalizedName());
+        } catch (Exception e) {
+            sb.append(stack.getDisplayName());
+        }
+        sb.append(":").append(stack.getItemDamage());
+        if (stack.hasTagCompound()) {
+            try { sb.append("|").append(stack.getTagCompound().toString()); } catch (Exception e) { /* ignore */ }
+        } else {
+            sb.append("|").append(stack.getDisplayName());
+        }
+        return sb.toString();
     }
 }
