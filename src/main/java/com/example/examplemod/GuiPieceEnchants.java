@@ -159,14 +159,20 @@ public class GuiPieceEnchants extends GuiScreen {
         this.fontRendererObj.drawStringWithShadow(header, headerX, headerY, 0xFFFFFF);
 
         // draw assigned enchant names left-aligned near the enchant list (start at middleLeft)
-        for (int i = 0; i < assigned.size(); i++) {
-            String name = assigned.get(i);
-            EnchantDef def = null;
-            for (EnchantDef d : parentGui.getAllEnchantDefs()) if (d.name.equals(name)) { def = d; break; }
-            String text = def != null ? parentGui.getColoredName(def) : name;
-            int drawY = listTop + (i * per);
-            this.fontRendererObj.drawStringWithShadow(text, middleLeft, drawY + 2, 0xFFFFFF);
-        }
+            for (int i = 0; i < assigned.size(); i++) {
+                String name = assigned.get(i);
+                EnchantDef def = null;
+                for (EnchantDef d : parentGui.getAllEnchantDefs()) if (d.name.equals(name)) { def = d; break; }
+                String text;
+                if (def != null) {
+                    String roman = RomanNumerals.toRoman(def.maxLevel);
+                    text = parentGui.getColoredName(def) + " " + roman;
+                } else {
+                    text = name;
+                }
+                int drawY = listTop + (i * per);
+                this.fontRendererObj.drawStringWithShadow(text, middleLeft, drawY + 2, 0xFFFFFF);
+            }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
         if (panel != null) panel.drawScaledLabels(mouseX, mouseY, partialTicks);

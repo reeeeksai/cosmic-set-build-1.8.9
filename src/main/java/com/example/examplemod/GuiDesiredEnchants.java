@@ -453,6 +453,11 @@ public class GuiDesiredEnchants extends GuiScreen {
             return;
         }
 
+        if (button.id == SET_LABEL_ID) {
+            return;
+        }
+        
+
         // enchant selected via panel -> highlight enchant and slot buttons
         if (enchantPanel != null) {
             String clicked = enchantPanel.onButtonPressed(button);
@@ -560,7 +565,7 @@ public class GuiDesiredEnchants extends GuiScreen {
         // tagButtons are kept empty so no labels are rendered here.
 
         // Draw header and default components
-        this.drawCenteredString(this.fontRendererObj, "Select Desired Enchants (click enchant, then click a piece)", this.width / 2, 5, 0xFFFFFF);
+        // this.drawCenteredString(this.fontRendererObj, "Select Desired Enchants (click enchant, then click a piece)", this.width / 2, 5, 0xFFFFFF);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 

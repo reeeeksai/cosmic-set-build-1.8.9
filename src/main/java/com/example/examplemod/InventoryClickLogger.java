@@ -26,7 +26,7 @@ public class InventoryClickLogger {
 
     public static void init() {
         if (key == null) {
-            key = new KeyBinding("Log inventory item", Keyboard.KEY_K, "Cosmic Set Builder");
+            key = new KeyBinding("Mark Inventory Item", Keyboard.KEY_M, "Cosmic Set Builder");
             ClientRegistry.registerKeyBinding(key);
             InventoryClickLogger inst = new InventoryClickLogger();
             MinecraftForge.EVENT_BUS.register(inst);

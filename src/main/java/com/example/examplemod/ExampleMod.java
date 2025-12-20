@@ -25,8 +25,8 @@ public class ExampleMod
     public void init(FMLInitializationEvent event)
     {
 
-        // Create keybinding: key G, category "Example Mod"
-        openGuiKey = new KeyBinding("Open Enchant GUI", Keyboard.KEY_G, "Example Mod");
+        // Create keybinding: key G, category "Cosmic Set Builder"
+        openGuiKey = new KeyBinding("Open Enchant GUI", Keyboard.KEY_G, "Cosmic Set Builder");
         ClientRegistry.registerKeyBinding(openGuiKey);
 
         // Register key handler
