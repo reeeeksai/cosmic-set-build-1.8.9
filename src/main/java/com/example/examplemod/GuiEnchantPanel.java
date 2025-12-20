@@ -24,6 +24,7 @@ public class GuiEnchantPanel {
     private int scrollOffset = 0;
     private final List<String> renderLabels = new ArrayList<String>();
     private final List<String> rawNames = new ArrayList<String>();
+    private boolean filteringEnabled = true;
 
     private int leftX = 0;
     private int listStartY = 0;
@@ -114,10 +115,22 @@ public class GuiEnchantPanel {
 
     public boolean textboxKeyTyped(char typedChar, int keyCode) {
         if (this.searchField != null && this.searchField.textboxKeyTyped(typedChar, keyCode)) {
-            updateFilteredButtons();
+            if (filteringEnabled) updateFilteredButtons();
             return true;
         }
         return false;
+    }
+
+    public void setFilteringEnabled(boolean enabled) {
+        this.filteringEnabled = enabled;
+        if (enabled) {
+            updateFilteredButtons();
+        } else {
+            // hide any existing enchant buttons while filtering is disabled
+            for (GuiButton b : enchantButtons) {
+                if (b != null) b.visible = false;
+            }
+        }
     }
 
     public void mouseClicked(int mouseX, int mouseY, int mouseButton) {
@@ -138,6 +151,12 @@ public class GuiEnchantPanel {
 
     public void drawPanel(int mouseX, int mouseY, float partialTicks) {
         if (searchField != null) searchField.drawTextBox();
+        if (!filteringEnabled) {
+            // when filtering is disabled we don't show the enchant list
+            for (GuiButton b : enchantButtons) if (b != null) b.visible = false;
+            return;
+        }
+
         int total = enchantButtons.size() * (buttonHeight + 2);
         for (int i = 0; i < enchantButtons.size(); i++) {
             GuiButton b = enchantButtons.get(i);
@@ -173,6 +192,7 @@ public class GuiEnchantPanel {
      */
     public void drawScaledLabels(int mouseX, int mouseY, float partialTicks) {
         if (fontRenderer == null) return;
+        if (!filteringEnabled) return;
         float s = 0.745f;
         float inv = 1.0f / s;
         GL11.glPushMatrix();

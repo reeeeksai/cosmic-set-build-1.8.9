@@ -422,7 +422,7 @@ public class GuiDesiredEnchants extends GuiScreen {
             GuiButton nb = getButtonById(SET_NEW_ID);
             if (!creatingNew) {
                 creatingNew = true;
-                if (enchantPanel != null) { enchantPanel.setText(""); enchantPanel.setFocused(true); }
+                if (enchantPanel != null) { enchantPanel.setText("New Set"); enchantPanel.setFocused(true); enchantPanel.setFilteringEnabled(false); }
                 if (nb != null) nb.displayString = "Create";
                 return;
             } else {
@@ -431,6 +431,8 @@ public class GuiDesiredEnchants extends GuiScreen {
                 EnchantSet s = setManager.createSet(name);
                 setManager.setActiveSet(s.id);
                 creatingNew = false;
+                if (enchantPanel != null) enchantPanel.setText("");
+                if (enchantPanel != null) enchantPanel.setFilteringEnabled(true);
                 if (nb != null) nb.displayString = "New Set";
                 loadActiveSetToGui();
                 updateTagButtons();
