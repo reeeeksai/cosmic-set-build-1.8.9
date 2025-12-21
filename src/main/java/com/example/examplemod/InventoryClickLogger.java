@@ -77,15 +77,28 @@ public class InventoryClickLogger {
         int mouseY = sr.getScaledHeight() - Mouse.getY() / scale - 1;
         int guiLeft = 0;
         int guiTop = 0;
-        try {
-            java.lang.reflect.Field fLeft = GuiContainer.class.getDeclaredField("guiLeft");
-            java.lang.reflect.Field fTop = GuiContainer.class.getDeclaredField("guiTop");
-            fLeft.setAccessible(true);
-            fTop.setAccessible(true);
-            guiLeft = fLeft.getInt(gui);
-            guiTop = fTop.getInt(gui);
-        } catch (Exception e) {
-            // fallback to 0
+        // try several possible field names to be robust across obfuscated/production environments
+        String[] leftNames = new String[] { "guiLeft", "field_147003_i", "field_146999_f" };
+        String[] topNames = new String[] { "guiTop", "field_147009_r", "field_147000_g" };
+        for (String n : leftNames) {
+            try {
+                java.lang.reflect.Field fLeft = GuiContainer.class.getDeclaredField(n);
+                fLeft.setAccessible(true);
+                guiLeft = fLeft.getInt(gui);
+                break;
+            } catch (Exception ex) {
+                // try next
+            }
+        }
+        for (String n : topNames) {
+            try {
+                java.lang.reflect.Field fTop = GuiContainer.class.getDeclaredField(n);
+                fTop.setAccessible(true);
+                guiTop = fTop.getInt(gui);
+                break;
+            } catch (Exception ex) {
+                // try next
+            }
         }
         int relX = mouseX - guiLeft;
         int relY = mouseY - guiTop;
