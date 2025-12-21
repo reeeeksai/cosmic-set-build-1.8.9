@@ -32,8 +32,6 @@ public class ExampleMod
         // Register key handler
         MinecraftForge.EVENT_BUS.register(new KeyInputHandler());
 
-		// some example code
-        MinecraftForge.EVENT_BUS.register(new ArmorEnchantLogger());
         // initialize inventory click logger (registers its keybinding and handler)
         com.example.examplemod.InventoryClickLogger.init();
 
