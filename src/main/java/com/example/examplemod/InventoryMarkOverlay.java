@@ -103,12 +103,12 @@ public class InventoryMarkOverlay {
             }
             if (missing.isEmpty()) continue;
 
-            // scan visible inventory slots for books/items that provide any missing enchant
+            // scan visible container slots for books/items that provide any missing enchant
             for (int si = 0; si < guiC.inventorySlots.inventorySlots.size(); si++) {
                 Object o = guiC.inventorySlots.inventorySlots.get(si);
                 if (!(o instanceof Slot)) continue;
                 Slot s = (Slot) o;
-                if (s.inventory != mc.thePlayer.inventory) continue; // only player inventory
+                // include any container shown in the GUI (player inventory and other containers)
                 int sx = s.xDisplayPosition;
                 int sy = s.yDisplayPosition;
                 ItemStack st = s.getStack();
