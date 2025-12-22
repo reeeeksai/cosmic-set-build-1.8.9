@@ -170,7 +170,8 @@ public class InventoryClickLogger {
                             if (mc.thePlayer.inventory.mainInventory[k] == stack) { invIndex = k; break; }
                         }
                         String sig = signatureOf(stack);
-                        marks.setMarkedAt(markIndex, true, guiLeft + sx, guiTop + sy, 16, 16, invIndex, sig);
+                        // store slot-relative coordinates (sx,sy) instead of absolute GUI coords
+                        marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, invIndex, sig);
                     } else {
                         marks.setMarkedAt(markIndex, false, 0,0,0,0, -1, null);
                     }

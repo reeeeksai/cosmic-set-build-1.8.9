@@ -29,21 +29,6 @@ public class InventoryMarkOverlay {
         // armor/worn slots so they don't draw over the container view
         boolean isPlayerInventoryGui = gui instanceof GuiInventory;
         MarkedSlots marks = MarkedSlots.getInstance();
-        for (int i = 0; i < 6; i++) {
-            if (!marks.isMarked(i)) continue;
-            if (!marks.hasLastRect(i)) continue;
-            // when not in the player's inventory, skip drawing armor marks
-            if (!isPlayerInventoryGui && i >= 0 && i <= 3) continue;
-            int x = marks.getLastX(i);
-            int y = marks.getLastY(i);
-            int w = marks.getLastW(i);
-            int h = marks.getLastH(i);
-            // draw translucent green rectangle
-            Gui.drawRect(x - 2, y - 2, x + w + 2, y + h + 2, 0x8040FF40);
-        }
-
-        // Additionally highlight any books in the player's inventory that provide
-        // enchants missing from each marked piece.
         Minecraft mc = Minecraft.getMinecraft();
         GuiContainer guiC = (GuiContainer) gui;
         int guiLeft = 0;
@@ -68,6 +53,55 @@ public class InventoryMarkOverlay {
             } catch (Exception ex) { }
         }
 
+        for (int i = 0; i < 6; i++) {
+            if (!marks.isMarked(i)) continue;
+            if (!marks.hasLastRect(i)) continue;
+            // when not in the player's inventory GUI, skip drawing marks for
+            // worn/equipped armor pieces only (but still draw marks for
+            // armor items that are in the player's main inventory)
+            if (!isPlayerInventoryGui && i >= 0 && i <= 3) {
+                int invIdxForMark = marks.getMarkedInvIndex(i);
+                if (invIdxForMark < 0) continue; // mark refers to equipped/worn piece
+            }
+            int relX = marks.getLastX(i);
+            int relY = marks.getLastY(i);
+            int w = marks.getLastW(i);
+            int h = marks.getLastH(i);
+            // if this mark refers to a mainInventory index, try to find the
+            // corresponding Slot in the current GUI (player inventory may
+            // shift between GUIs like chest vs player inventory). Fall back
+            // to stored relative coords if not found.
+            int invIdxForMark = marks.getMarkedInvIndex(i);
+            int drawX = guiLeft + relX; // default/fallback
+            int drawY = guiTop + relY;  // default/fallback
+            if (invIdxForMark >= 0) {
+                boolean found = false;
+                for (Object o : guiC.inventorySlots.inventorySlots) {
+                    if (!(o instanceof Slot)) continue;
+                    Slot s = (Slot) o;
+                    try {
+                        if (s.inventory == mc.thePlayer.inventory) {
+                            ItemStack st = s.getStack();
+                            ItemStack expected = mc.thePlayer.inventory.mainInventory[invIdxForMark];
+                            if (expected != null && st == expected) {
+                                drawX = guiLeft + s.xDisplayPosition;
+                                drawY = guiTop + s.yDisplayPosition;
+                                found = true;
+                                break;
+                            }
+                        }
+                    } catch (Exception ex) { /* ignore */ }
+                }
+                if (!found) { drawX = guiLeft + relX; drawY = guiTop + relY; }
+            } else {
+                drawX = guiLeft + relX;
+                drawY = guiTop + relY;
+            }
+            Gui.drawRect(drawX - 2, drawY - 2, drawX + w + 2, drawY + h + 2, 0x8040FF40);
+        }
+
+        // Additionally highlight any books in the player's inventory that provide
+        // enchants missing from each marked piece.
         // active desired enchants
         EnchantSet active = EnchantSetManager.getInstance().getActiveSet();
         if (active == null) return;
@@ -75,11 +109,22 @@ public class InventoryMarkOverlay {
         // iterate marked slots and, for each, compute missing enchants then highlight books
         for (int i = 0; i < 6; i++) {
             if (!marks.isMarked(i)) continue;
-            // when not in the player's inventory GUI, skip processing armor/worn slots
-            if (!isPlayerInventoryGui && i >= 0 && i <= 3) continue;
             int invIdx = marks.getMarkedInvIndex(i);
-            if (invIdx < 0 || mc.thePlayer == null) continue;
-            ItemStack piece = mc.thePlayer.inventory.mainInventory[invIdx];
+            // when not in the player's inventory GUI, skip processing marks that
+            // refer to equipped/worn armor pieces (invIdx < 0). If invIdx >= 0
+            // the mark refers to a mainInventory slot and should still be processed.
+            if (!isPlayerInventoryGui && i >= 0 && i <= 3 && invIdx < 0) continue;
+            if (mc.thePlayer == null) continue;
+            ItemStack piece = null;
+            if (invIdx >= 0) {
+                piece = mc.thePlayer.inventory.mainInventory[invIdx];
+            } else if (i >= 0 && i <= 3) {
+                // marked slot refers to a worn armor piece; armorInventory indices
+                // are 0=boots,1=leggings,2=chestplate,3=helmet, while our mark
+                // indices are 0=helmet..3=boots, so map via (3 - i)
+                int armorIdx = 3 - i;
+                try { piece = mc.thePlayer.inventory.armorInventory[armorIdx]; } catch (Exception e) { piece = null; }
+            }
             if (piece == null) continue;
 
             // map index to SlotType name
