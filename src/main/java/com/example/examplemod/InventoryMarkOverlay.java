@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemWritableBook;
@@ -23,10 +24,16 @@ public class InventoryMarkOverlay {
         GuiScreen gui = event.gui;
         // only draw marks when an inventory/container GUI is open
         if (!(gui instanceof GuiContainer)) return;
+        // show full marks only when viewing the player's inventory GUI;
+        // when in other containers (e.g., chest) we will hide marks for
+        // armor/worn slots so they don't draw over the container view
+        boolean isPlayerInventoryGui = gui instanceof GuiInventory;
         MarkedSlots marks = MarkedSlots.getInstance();
         for (int i = 0; i < 6; i++) {
             if (!marks.isMarked(i)) continue;
             if (!marks.hasLastRect(i)) continue;
+            // when not in the player's inventory, skip drawing armor marks
+            if (!isPlayerInventoryGui && i >= 0 && i <= 3) continue;
             int x = marks.getLastX(i);
             int y = marks.getLastY(i);
             int w = marks.getLastW(i);
@@ -68,6 +75,8 @@ public class InventoryMarkOverlay {
         // iterate marked slots and, for each, compute missing enchants then highlight books
         for (int i = 0; i < 6; i++) {
             if (!marks.isMarked(i)) continue;
+            // when not in the player's inventory GUI, skip processing armor/worn slots
+            if (!isPlayerInventoryGui && i >= 0 && i <= 3) continue;
             int invIdx = marks.getMarkedInvIndex(i);
             if (invIdx < 0 || mc.thePlayer == null) continue;
             ItemStack piece = mc.thePlayer.inventory.mainInventory[invIdx];
