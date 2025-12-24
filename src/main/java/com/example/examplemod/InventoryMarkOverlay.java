@@ -101,6 +101,17 @@ public class InventoryMarkOverlay {
                         marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
                         continue;
                     }
+                    // if the current inventory item's signature differs from the stored
+                    // marked signature and the player isn't interacting (cursor null),
+                    // clear the mark since the piece was replaced by another.
+                    try {
+                        String prevSig = marks.getMarkedSignature(i);
+                        String curSig = signatureOf(cur);
+                        if (cursor == null && prevSig != null && curSig != null && !prevSig.equals(curSig)) {
+                            marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
+                            continue;
+                        }
+                    } catch (Exception ex) { /* ignore */ }
                 } catch (Exception ex) { /* ignore */ }
 
                 boolean found = false;
@@ -190,6 +201,15 @@ public class InventoryMarkOverlay {
                         marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
                         continue;
                     }
+                        // also clear if signature changed (replaced by another piece) and cursor empty
+                        try {
+                            String prevSig = marks.getMarkedSignature(i);
+                            String curSig = signatureOf(cur);
+                            if (cursor == null && prevSig != null && curSig != null && !prevSig.equals(curSig)) {
+                                marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
+                                continue;
+                            }
+                        } catch (Exception ex) { /* ignore */ }
                 } catch (Exception ex) { /* ignore */ }
             }
             // when not in the player's inventory GUI, skip processing marks that
@@ -207,6 +227,18 @@ public class InventoryMarkOverlay {
                 int armorIdx = 3 - i;
                 try { piece = mc.thePlayer.inventory.armorInventory[armorIdx]; } catch (Exception e) { piece = null; }
             }
+            // if the currently worn/main-inventory piece differs from the stored
+            // signature (and player isn't interacting), clear the mark.
+            try {
+                ItemStack cursor = null;
+                try { cursor = mc.thePlayer.inventory.getItemStack(); } catch (Exception e) { cursor = null; }
+                String prevSig = marks.getMarkedSignature(i);
+                String curSig = signatureOf(piece);
+                if (cursor == null && prevSig != null && curSig != null && !prevSig.equals(curSig)) {
+                    marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
+                    continue;
+                }
+            } catch (Exception ex) { /* ignore */ }
             if (piece == null) continue;
 
             // map index to SlotType name
@@ -485,5 +517,22 @@ public class InventoryMarkOverlay {
             }
         } catch (Exception e) { }
         return false;
+    }
+
+    private static String signatureOf(ItemStack stack) {
+        if (stack == null) return null;
+        StringBuilder sb = new StringBuilder();
+        try {
+            sb.append(stack.getItem().getUnlocalizedName());
+        } catch (Exception e) {
+            sb.append(stack.getDisplayName());
+        }
+        sb.append(":").append(stack.getItemDamage());
+        if (stack.hasTagCompound()) {
+            try { sb.append("|").append(stack.getTagCompound().toString()); } catch (Exception e) { /* ignore */ }
+        } else {
+            sb.append("|").append(stack.getDisplayName());
+        }
+        return sb.toString();
     }
 }

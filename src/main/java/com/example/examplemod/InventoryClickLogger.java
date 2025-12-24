@@ -180,12 +180,8 @@ public class InventoryClickLogger {
                     }
                     // suppressed mark/unmark chat
                     // log item info immediately
-                    logItemStack(stack);
                     return;
                 }
-
-                // fallback: just log
-                logItemStack(stack);
                 return;
             }
         }
@@ -193,36 +189,6 @@ public class InventoryClickLogger {
         // suppressed chat: no item slot clicked
     }
 
-    private void logItemStack(ItemStack stack) {
-        if (stack == null) {
-            System.out.println("Clicked empty slot.");
-            return;
-        }
-        System.out.println("======== Clicked Item: " + stack.getDisplayName() + " ========");
-
-        if (stack.hasTagCompound()) {
-            NBTTagCompound tag = stack.getTagCompound();
-            if (tag.hasKey("display", 10)) {
-                NBTTagCompound display = tag.getCompoundTag("display");
-                if (display.hasKey("Lore", 9)) {
-                    System.out.println("Custom Enchants (Lore):");
-                    NBTTagList lore = display.getTagList("Lore", 8);
-                    for (int i = 0; i < lore.tagCount(); i++) {
-                        String line = lore.getStringTagAt(i);
-                        line = line.replaceAll("§.", "");
-                        System.out.println("  • " + line);
-                    }
-                } else {
-                    System.out.println("No lore found.");
-                }
-            } else {
-                System.out.println("No display tag found.");
-            }
-            System.out.println("NBT (raw): " + tag.toString());
-        } else {
-            System.out.println("No NBT data on this item.");
-        }
-    }
 
     private static String signatureOf(ItemStack stack) {
         if (stack == null) return null;
