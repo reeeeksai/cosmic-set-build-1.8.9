@@ -268,10 +268,8 @@ public class InventoryMarkOverlay {
                         } catch (Exception ex) { /* ignore */ }
                 } catch (Exception ex) { /* ignore */ }
             }
-            // when not in the player's inventory GUI, skip processing marks that
-            // refer to equipped/worn armor pieces (invIdx < 0). If invIdx >= 0
-            // the mark refers to a mainInventory slot and should still be processed.
-            if (!isPlayerInventoryGui && i >= 0 && i <= 3 && invIdx < 0) continue;
+            // We want to process marks for worn/equipped armor pieces even when
+            // viewing other container GUIs so that book highlights still work.
             if (mc.thePlayer == null) continue;
             ItemStack piece = null;
             if (invIdx >= 0) {
