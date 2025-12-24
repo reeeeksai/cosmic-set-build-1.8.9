@@ -181,23 +181,7 @@ public class InventoryMarkOverlay {
     // return 0 = none, 1 = provides missing (green), 2 = provides partial (orange)
     private static int bookProvidesMissingStatus(ItemStack stack, Set<String> missingLc) {
         if (stack == null || missingLc == null || missingLc.isEmpty()) return 0;
-        try {
-            // inspect lore lines first (preferred), then display name
-            if (stack.hasTagCompound()) {
-                NBTTagCompound tag = stack.getTagCompound();
-                if (tag.hasKey("display", 10)) {
-                    NBTTagCompound disp = tag.getCompoundTag("display");
-                    if (disp.hasKey("Lore", 9)) {
-                        NBTTagList lore = disp.getTagList("Lore", 8);
-                        for (int i = 0; i < lore.tagCount(); i++) {
-                            String line = lore.getStringTagAt(i).replaceAll("§.", "").trim();
-                            int status = lineProvidesMissingStatus(line, missingLc);
-                            if (status > 0) return status;
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) { }
+        // Only consider the book's display name (title) when deciding status.
         try {
             String name = stack.getDisplayName();
             if (name != null) {
@@ -322,23 +306,7 @@ public class InventoryMarkOverlay {
 
     private static boolean stackProvidesAnyMissing(ItemStack stack, Set<String> missingLc) {
         if (stack == null || missingLc == null || missingLc.isEmpty()) return false;
-        // check lore/display
-        try {
-            if (stack.hasTagCompound()) {
-                NBTTagCompound tag = stack.getTagCompound();
-                if (tag.hasKey("display", 10)) {
-                    NBTTagCompound disp = tag.getCompoundTag("display");
-                    if (disp.hasKey("Lore", 9)) {
-                        NBTTagList lore = disp.getTagList("Lore", 8);
-                        for (int i = 0; i < lore.tagCount(); i++) {
-                            String line = lore.getStringTagAt(i).replaceAll("§.", "").toLowerCase();
-                            for (String m : missingLc) if (line.contains(m)) return true;
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) { }
-        // fallback: check displayName
+        // Only check the book's display name (title) for missing enchant keywords.
         try {
             String name = stack.getDisplayName();
             if (name != null) {
