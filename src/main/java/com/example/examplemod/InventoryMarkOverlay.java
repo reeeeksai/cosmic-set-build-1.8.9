@@ -75,12 +75,52 @@ public class InventoryMarkOverlay {
             int drawX = guiLeft + relX; // default/fallback
             int drawY = guiTop + relY;  // default/fallback
             if (invIdxForMark >= 0) {
+                // if the tracked inventory slot is now empty, clear the mark
+                try {
+                    if (mc.thePlayer.inventory.mainInventory[invIdxForMark] == null) {
+                        marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
+                        continue;
+                    }
+                } catch (Exception ex) { /* ignore */ }
+
                 boolean found = false;
                 for (Object o : guiC.inventorySlots.inventorySlots) {
                     if (!(o instanceof Slot)) continue;
                     Slot s = (Slot) o;
                     try {
                         if (s.inventory == mc.thePlayer.inventory) {
+                            // prefer matching by the Slot's slot index (reflectively),
+                            // so the mark stays associated with the inventory slot even
+                            // if the ItemStack instance changed
+                            int slotIdx = Integer.MIN_VALUE;
+                            try {
+                                java.lang.reflect.Field f = Slot.class.getDeclaredField("slotNumber");
+                                f.setAccessible(true);
+                                slotIdx = f.getInt(s);
+                            } catch (NoSuchFieldException nsf) {
+                                try {
+                                    java.lang.reflect.Field f2 = Slot.class.getDeclaredField("slotIndex");
+                                    f2.setAccessible(true);
+                                    slotIdx = f2.getInt(s);
+                                } catch (NoSuchFieldException nsf2) {
+                                    try {
+                                        java.lang.reflect.Field f3 = Slot.class.getDeclaredField("field_75222_d");
+                                        f3.setAccessible(true);
+                                        slotIdx = f3.getInt(s);
+                                    } catch (Exception e) {
+                                        slotIdx = Integer.MIN_VALUE;
+                                    }
+                                } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+                            } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+
+                            if (slotIdx == invIdxForMark) {
+                                drawX = guiLeft + s.xDisplayPosition;
+                                drawY = guiTop + s.yDisplayPosition;
+                                found = true;
+                                break;
+                            }
+
+                            // fallback: identity match of ItemStack (existing behavior)
                             ItemStack st = s.getStack();
                             ItemStack expected = mc.thePlayer.inventory.mainInventory[invIdxForMark];
                             if (expected != null && st == expected) {
@@ -110,6 +150,15 @@ public class InventoryMarkOverlay {
         for (int i = 0; i < 6; i++) {
             if (!marks.isMarked(i)) continue;
             int invIdx = marks.getMarkedInvIndex(i);
+            // if the tracked inventory slot is now empty, clear the mark
+            if (invIdx >= 0) {
+                try {
+                    if (mc.thePlayer.inventory.mainInventory[invIdx] == null) {
+                        marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
+                        continue;
+                    }
+                } catch (Exception ex) { /* ignore */ }
+            }
             // when not in the player's inventory GUI, skip processing marks that
             // refer to equipped/worn armor pieces (invIdx < 0). If invIdx >= 0
             // the mark refers to a mainInventory slot and should still be processed.
