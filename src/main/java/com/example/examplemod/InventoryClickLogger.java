@@ -105,13 +105,35 @@ public class InventoryClickLogger {
             Slot slot = (Slot) o;
             int sx = slot.xDisplayPosition;
             int sy = slot.yDisplayPosition;
-            if (relX >= sx && relX < sx + 16 && relY >= sy && relY < sy + 16) {
-                // Only allow marking when clicking a slot that belongs to the player's inventory
-                if (slot.inventory != mc.thePlayer.inventory) {
-                    // not a player-invento (ery slot.g. crafting output, container chest), ignore
+                if (relX >= sx && relX < sx + 16 && relY >= sy && relY < sy + 16) {
+                ItemStack stack = slot.getStack();
+                // Determine the player's main-inventory index for the clicked stack.
+                // Try identity match first (fast), then fall back to a signature
+                // comparison so logically-equal stacks across container instances
+                // are still recognized. If we cannot map to the player's inventory
+                // and the slot isn't part of the player's inventory, ignore the click.
+                int preInvIndex = -1;
+                try {
+                    if (stack != null) {
+                        for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
+                            if (mc.thePlayer.inventory.mainInventory[k] == stack) { preInvIndex = k; break; }
+                        }
+                        if (preInvIndex == -1) {
+                            String sig = signatureOf(stack);
+                            if (sig != null) {
+                                for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
+                                    ItemStack s2 = mc.thePlayer.inventory.mainInventory[k];
+                                    if (s2 == null) continue;
+                                    String s2sig = signatureOf(s2);
+                                    if (sig.equals(s2sig)) { preInvIndex = k; break; }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) { preInvIndex = -1; }
+                if (slot.inventory != mc.thePlayer.inventory && preInvIndex == -1) {
                     return;
                 }
-                ItemStack stack = slot.getStack();
                 // suppressed debug chat for clicked slot
                 // determine which logical slot index to toggle (0..5)
                 int markIndex = -1;
@@ -145,33 +167,8 @@ public class InventoryClickLogger {
                     MarkedSlots marks = MarkedSlots.getInstance();
                     boolean currentlyMarked = marks.isMarked(markIndex);
                     String prevSig = marks.getMarkedSignature(markIndex);
-                    // determine which player inventory index this corresponds to (object identity)
-                    int invIndex = -1;
-                    for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
-                        if (mc.thePlayer.inventory.mainInventory[k] == stack) { invIndex = k; break; }
-                    }
-                    // Prefer to store the container Slot's slotNumber (container slot index)
-                    // so marks remain associated with the GUI Slot. If we couldn't
-                    // find a container slot number reflectively, fall back to the
-                    // raw inventory index. For armor/worn pieces invIndex stays -1.
-                    int containerSlotNumber = Integer.MIN_VALUE;
-                    try {
-                        java.lang.reflect.Field f = Slot.class.getDeclaredField("slotNumber");
-                        f.setAccessible(true);
-                        containerSlotNumber = f.getInt(slot);
-                    } catch (NoSuchFieldException nsf) {
-                        try {
-                            java.lang.reflect.Field f2 = Slot.class.getDeclaredField("slotIndex");
-                            f2.setAccessible(true);
-                            containerSlotNumber = f2.getInt(slot);
-                        } catch (NoSuchFieldException nsf2) {
-                            try {
-                                java.lang.reflect.Field f3 = Slot.class.getDeclaredField("field_75222_d");
-                                f3.setAccessible(true);
-                                containerSlotNumber = f3.getInt(slot);
-                            } catch (Exception e) { containerSlotNumber = Integer.MIN_VALUE; }
-                        } catch (Exception e) { containerSlotNumber = Integer.MIN_VALUE; }
-                    } catch (Exception e) { containerSlotNumber = Integer.MIN_VALUE; }
+                    // use the precomputed inventory index (or -1 for worn/armor)
+                    int invIndex = preInvIndex;
                     String sig = signatureOf(stack);
                     if (currentlyMarked) {
                         // if another item of the same logical slot is clicked, switch the mark
@@ -179,14 +176,14 @@ public class InventoryClickLogger {
                         boolean sameItem = (sig != null && sig.equals(prevSig));
                         if (!sameItem) {
                             // move the existing mark to the newly clicked slot
-                            int storedIndex = (invIndex >= 0) ? (containerSlotNumber != Integer.MIN_VALUE ? containerSlotNumber : invIndex) : -1;
+                            int storedIndex = (invIndex >= 0) ? invIndex : -1;
                             marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, storedIndex, sig);
                         } else {
                             marks.setMarkedAt(markIndex, false, 0,0,0,0, -1, null);
                         }
                     } else {
                         // create a new mark at the clicked slot
-                        int storedIndex = (invIndex >= 0) ? (containerSlotNumber != Integer.MIN_VALUE ? containerSlotNumber : invIndex) : -1;
+                        int storedIndex = (invIndex >= 0) ? invIndex : -1;
                         marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, storedIndex, sig);
                     }
                     boolean now = marks.isMarked(markIndex);

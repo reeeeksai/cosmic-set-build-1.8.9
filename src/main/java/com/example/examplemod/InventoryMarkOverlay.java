@@ -115,14 +115,20 @@ public class InventoryMarkOverlay {
                 } catch (Exception ex) { /* ignore */ }
 
                 boolean found = false;
+                // Resolve by mapping container slot numbers to the player's
+                // mainInventory indices. Build a map of container slotNum ->
+                // mainInventory index for any Slot that references the player's
+                // inventory in this GUI. This robustly handles single/double
+                // chests and other containers where numeric offsets vary.
+                ItemStack expected = null;
+                try { expected = mc.thePlayer.inventory.mainInventory[invIdxForMark]; } catch (Exception e) { expected = null; }
+
+                java.util.Map<Integer,Integer> slotToMain = new java.util.HashMap<Integer,Integer>();
                 for (Object o : guiC.inventorySlots.inventorySlots) {
                     if (!(o instanceof Slot)) continue;
                     Slot s = (Slot) o;
                     try {
                         if (s.inventory == mc.thePlayer.inventory) {
-                            // prefer matching by the Slot's slot index (reflectively),
-                            // so the mark stays associated with the inventory slot even
-                            // if the ItemStack instance changed
                             int slotIdx = Integer.MIN_VALUE;
                             try {
                                 java.lang.reflect.Field f = Slot.class.getDeclaredField("slotNumber");
@@ -138,28 +144,78 @@ public class InventoryMarkOverlay {
                                         java.lang.reflect.Field f3 = Slot.class.getDeclaredField("field_75222_d");
                                         f3.setAccessible(true);
                                         slotIdx = f3.getInt(s);
-                                    } catch (Exception e) {
-                                        slotIdx = Integer.MIN_VALUE;
-                                    }
+                                    } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
                                 } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
                             } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
 
-                            if (slotIdx == invIdxForMark) {
-                                drawX = guiLeft + s.xDisplayPosition;
-                                drawY = guiTop + s.yDisplayPosition;
-                                found = true;
-                                break;
+                            if (slotIdx != Integer.MIN_VALUE) {
+                                ItemStack st = null;
+                                try { st = s.getStack(); } catch (Exception ex) { st = null; }
+                                if (st != null) {
+                                    for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
+                                        if (mc.thePlayer.inventory.mainInventory[k] == st) { slotToMain.put(slotIdx, k); break; }
+                                    }
+                                }
                             }
+                        }
+                    } catch (Exception ex) { /* ignore per-slot */ }
+                }
 
-                            // fallback: identity match of ItemStack (existing behavior)
+                for (Object o : guiC.inventorySlots.inventorySlots) {
+                    if (!(o instanceof Slot)) continue;
+                    Slot s = (Slot) o;
+                    try {
+                        if (s.inventory == mc.thePlayer.inventory) {
                             ItemStack st = s.getStack();
-                            ItemStack expected = mc.thePlayer.inventory.mainInventory[invIdxForMark];
                             if (expected != null && st == expected) {
                                 drawX = guiLeft + s.xDisplayPosition;
                                 drawY = guiTop + s.yDisplayPosition;
                                 found = true;
                                 break;
                             }
+                            // try mapping by slotNum -> mainInventory index
+                            int slotIdx = Integer.MIN_VALUE;
+                            try {
+                                java.lang.reflect.Field f = Slot.class.getDeclaredField("slotNumber");
+                                f.setAccessible(true);
+                                slotIdx = f.getInt(s);
+                            } catch (NoSuchFieldException nsf) {
+                                try {
+                                    java.lang.reflect.Field f2 = Slot.class.getDeclaredField("slotIndex");
+                                    f2.setAccessible(true);
+                                    slotIdx = f2.getInt(s);
+                                } catch (NoSuchFieldException nsf2) {
+                                    try {
+                                        java.lang.reflect.Field f3 = Slot.class.getDeclaredField("field_75222_d");
+                                        f3.setAccessible(true);
+                                        slotIdx = f3.getInt(s);
+                                    } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+                                } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+                            } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+
+                            if (slotIdx != Integer.MIN_VALUE) {
+                                Integer mapped = slotToMain.get(slotIdx);
+                                if (mapped != null && mapped == invIdxForMark) {
+                                    drawX = guiLeft + s.xDisplayPosition;
+                                    drawY = guiTop + s.yDisplayPosition;
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            // final fallback: signature match
+                            try {
+                                if (expected != null && st != null) {
+                                    String a = signatureOf(expected);
+                                    String b = signatureOf(st);
+                                    if (a != null && b != null && a.equals(b)) {
+                                        drawX = guiLeft + s.xDisplayPosition;
+                                        drawY = guiTop + s.yDisplayPosition;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            } catch (Exception ex) { /* ignore */ }
                         }
                     } catch (Exception ex) { /* ignore */ }
                 }
@@ -565,47 +621,14 @@ public class InventoryMarkOverlay {
     // the raw mainInventory index if it looks like one.
     private static ItemStack getStackForMarkedIndex(Minecraft mc, GuiContainer guiC, int storedIdx) {
         if (storedIdx < 0) return null;
-        // try to find a Slot in the open GUI that has the same container slot number
+        // Stored indices now represent the player's mainInventory index.
+        // Prefer returning the player's current mainInventory entry so marks
+        // persist across container GUI instances.
         try {
-            for (Object o : guiC.inventorySlots.inventorySlots) {
-                if (!(o instanceof Slot)) continue;
-                Slot s = (Slot) o;
-                int slotIdx = Integer.MIN_VALUE;
-                try {
-                    java.lang.reflect.Field f = Slot.class.getDeclaredField("slotNumber");
-                    f.setAccessible(true);
-                    slotIdx = f.getInt(s);
-                } catch (NoSuchFieldException nsf) {
-                    try {
-                        java.lang.reflect.Field f2 = Slot.class.getDeclaredField("slotIndex");
-                        f2.setAccessible(true);
-                        slotIdx = f2.getInt(s);
-                    } catch (NoSuchFieldException nsf2) {
-                        try {
-                            java.lang.reflect.Field f3 = Slot.class.getDeclaredField("field_75222_d");
-                            f3.setAccessible(true);
-                            slotIdx = f3.getInt(s);
-                        } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
-                    } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
-                } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
-
-                if (slotIdx == storedIdx) {
-                    try { return s.getStack(); } catch (Exception ex) { return null; }
-                }
+            if (storedIdx >= 0 && storedIdx < mc.thePlayer.inventory.mainInventory.length) {
+                return mc.thePlayer.inventory.mainInventory[storedIdx];
             }
         } catch (Exception e) { /* ignore */ }
-
-        // If no GUI is open or slot not present, handle hotbar container indices
-        if (storedIdx >= 36 && storedIdx <= 44) {
-            int inv = storedIdx - 36;
-            if (inv >= 0 && inv < mc.thePlayer.inventory.mainInventory.length) return mc.thePlayer.inventory.mainInventory[inv];
-        }
-
-        // fallback: if storedIdx looks like a mainInventory index, return that
-        if (storedIdx >= 0 && storedIdx < mc.thePlayer.inventory.mainInventory.length) {
-            return mc.thePlayer.inventory.mainInventory[storedIdx];
-        }
-
         return null;
     }
 }
