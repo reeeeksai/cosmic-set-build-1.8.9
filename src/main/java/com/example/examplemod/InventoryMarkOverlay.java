@@ -227,16 +227,38 @@ public class InventoryMarkOverlay {
                 int armorIdx = 3 - i;
                 try { piece = mc.thePlayer.inventory.armorInventory[armorIdx]; } catch (Exception e) { piece = null; }
             }
-            // if the currently worn/main-inventory piece differs from the stored
-            // signature (and player isn't interacting), clear the mark.
+            // If the currently worn/main-inventory piece differs from the stored
+            // signature (and player isn't interacting), clear the mark. Also
+            // handle the case where a worn armor piece was moved into the main
+            // inventory: treat that as removal of the worn mark and clear it.
             try {
                 ItemStack cursor = null;
                 try { cursor = mc.thePlayer.inventory.getItemStack(); } catch (Exception e) { cursor = null; }
                 String prevSig = marks.getMarkedSignature(i);
                 String curSig = signatureOf(piece);
-                if (cursor == null && prevSig != null && curSig != null && !prevSig.equals(curSig)) {
-                    marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
-                    continue;
+                if (cursor == null) {
+                    if (prevSig != null && curSig != null && !prevSig.equals(curSig)) {
+                        marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
+                        continue;
+                    }
+                    // If the mark referred to a worn armor piece (invIdx < 0)
+                    // but that armor slot is now empty, the item may have been
+                    // moved into the main inventory; if so, clear the worn mark.
+                    if (piece == null && prevSig != null && i >= 0 && i <= 3) {
+                        boolean foundInMain = false;
+                        try {
+                            for (int mi = 0; mi < mc.thePlayer.inventory.mainInventory.length; mi++) {
+                                ItemStack s = mc.thePlayer.inventory.mainInventory[mi];
+                                if (s == null) continue;
+                                String sig = signatureOf(s);
+                                if (sig != null && sig.equals(prevSig)) { foundInMain = true; break; }
+                            }
+                        } catch (Exception e) { foundInMain = false; }
+                        if (foundInMain) {
+                            marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
+                            continue;
+                        }
+                    }
                 }
             } catch (Exception ex) { /* ignore */ }
             if (piece == null) continue;
