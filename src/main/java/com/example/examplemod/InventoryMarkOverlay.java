@@ -8,6 +8,9 @@ import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemWritableBook;
+import net.minecraft.item.ItemArmor;
+import net.minecraft.item.ItemSword;
+import net.minecraft.item.ItemAxe;
 import net.minecraft.init.Items;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -75,9 +78,26 @@ public class InventoryMarkOverlay {
             int drawX = guiLeft + relX; // default/fallback
             int drawY = guiTop + relY;  // default/fallback
             if (invIdxForMark >= 0) {
-                // if the tracked inventory slot is now empty, clear the mark
+                // if the tracked inventory slot does not currently contain a
+                // valid target item (armor/weapon) AND the player is not
+                // holding any item on the cursor, then clear the mark. This
+                // avoids losing marks during brief swap events (e.g. apply
+                // enchant) where the ItemStack instance may change.
                 try {
-                    if (mc.thePlayer.inventory.mainInventory[invIdxForMark] == null) {
+                    ItemStack cur = mc.thePlayer.inventory.mainInventory[invIdxForMark];
+                    boolean valid = false;
+                    if (cur != null) {
+                        if (i >= 0 && i <= 3) { // armor slots
+                            if (cur.getItem() instanceof ItemArmor) valid = true;
+                        } else if (i == 4) {
+                            if (cur.getItem() instanceof ItemSword) valid = true;
+                        } else if (i == 5) {
+                            if (cur.getItem() instanceof ItemAxe) valid = true;
+                        }
+                    }
+                    ItemStack cursor = null;
+                    try { cursor = mc.thePlayer.inventory.getItemStack(); } catch (Exception e) { cursor = null; }
+                    if (!valid && cursor == null) {
                         marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
                         continue;
                     }
@@ -150,10 +170,23 @@ public class InventoryMarkOverlay {
         for (int i = 0; i < 6; i++) {
             if (!marks.isMarked(i)) continue;
             int invIdx = marks.getMarkedInvIndex(i);
-            // if the tracked inventory slot is now empty, clear the mark
+            // if the tracked inventory slot does not currently contain a
+            // valid target item AND the player is not holding any item on
+            // the cursor, clear the mark. This keeps marks through brief
+            // swaps (enchant/apply) while still removing marks when a slot
+            // becomes empty and the player isn't interacting.
             if (invIdx >= 0) {
                 try {
-                    if (mc.thePlayer.inventory.mainInventory[invIdx] == null) {
+                    ItemStack cur = mc.thePlayer.inventory.mainInventory[invIdx];
+                    boolean valid = false;
+                    if (cur != null) {
+                        if (i >= 0 && i <= 3) { if (cur.getItem() instanceof ItemArmor) valid = true; }
+                        else if (i == 4) { if (cur.getItem() instanceof ItemSword) valid = true; }
+                        else if (i == 5) { if (cur.getItem() instanceof ItemAxe) valid = true; }
+                    }
+                    ItemStack cursor = null;
+                    try { cursor = mc.thePlayer.inventory.getItemStack(); } catch (Exception e) { cursor = null; }
+                    if (!valid && cursor == null) {
                         marks.setMarkedAt(i, false, 0, 0, 0, 0, -1, null);
                         continue;
                     }
