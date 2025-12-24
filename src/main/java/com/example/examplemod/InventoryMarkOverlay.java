@@ -144,14 +144,25 @@ public class InventoryMarkOverlay {
             if (desired == null || desired.isEmpty()) continue;
 
             // extract enchant names present on the piece (from lore or display)
-            Set<String> present = extractEnchantNames(piece);
+            java.util.Map<String,Integer> present = extractEnchantLevels(piece);
             Set<String> missing = new HashSet<String>();
             for (String want : desired) {
                 if (want == null) continue;
                 String wantLc = want.toLowerCase();
                 boolean found = false;
-                for (String p : present) {
-                    if (p.toLowerCase().contains(wantLc) || wantLc.contains(p.toLowerCase())) { found = true; break; }
+                EnchantDef wantDef = findEnchantDefByName(wantLc);
+                int wantLevel = (wantDef != null) ? wantDef.maxLevel : 0;
+                for (java.util.Map.Entry<String,Integer> e : present.entrySet()) {
+                    String p = e.getKey();
+                    int pLevel = e.getValue();
+                    if (p == null) continue;
+                    String pLc = p.toLowerCase();
+                    if (pLc.contains(wantLc) || wantLc.contains(pLc)) {
+                        if (wantLevel <= 0) { found = true; break; }
+                        // if piece has the enchant but at lower than desired (max) level, consider it missing
+                        if (pLevel >= wantLevel) { found = true; break; }
+                        // otherwise treat as not found (so missing) and continue checking other present enchants
+                    }
                 }
                 if (!found) missing.add(wantLc);
             }
@@ -165,10 +176,17 @@ public class InventoryMarkOverlay {
                         if (base != null && base.name != null) {
                             String baseLc = base.name.toLowerCase();
                             boolean basePresent = false;
-                            for (String p : present) {
+                            for (java.util.Map.Entry<String,Integer> e : present.entrySet()) {
+                                String p = e.getKey();
+                                int pLevel = e.getValue();
                                 if (p == null) continue;
                                 String pl = p.toLowerCase();
-                                if (pl.contains(baseLc) || baseLc.contains(pl)) { basePresent = true; break; }
+                                if (pl.contains(baseLc) || baseLc.contains(pl)) {
+                                    // require base enchant to be at its max to count as present
+                                    EnchantDef baseDef = EnchantRegistry.get(d.buildsFromId);
+                                    int req = (baseDef != null) ? baseDef.maxLevel : 0;
+                                    if (req <= 0 || pLevel >= req) { basePresent = true; break; }
+                                }
                             }
                             if (!basePresent) expanded.add(baseLc);
                         }
@@ -299,6 +317,33 @@ public class InventoryMarkOverlay {
         if (r.equals("IX")) return 9;
         if (r.equals("X")) return 10;
         try { return Integer.parseInt(r); } catch (Exception e) { return 0; }
+    }
+
+    private static java.util.Map<String,Integer> extractEnchantLevels(ItemStack stack) {
+        java.util.Map<String,Integer> out = new java.util.HashMap<String,Integer>();
+        if (stack == null) return out;
+        try {
+            if (stack.hasTagCompound()) {
+                NBTTagCompound tag = stack.getTagCompound();
+                if (tag.hasKey("display", 10)) {
+                    NBTTagCompound disp = tag.getCompoundTag("display");
+                    if (disp.hasKey("Lore", 9)) {
+                        NBTTagList lore = disp.getTagList("Lore", 8);
+                        for (int i = 0; i < lore.tagCount(); i++) {
+                            String line = lore.getStringTagAt(i);
+                            line = line.replaceAll("§.", "").trim();
+                            int level = extractLevelFromLine(line);
+                            // remove trailing level tokens and separators to get base name
+                            String base = line.replaceAll("(?i)[:\\-\\s]*\\b(i{1,3}|iv|v|vi{0,3}|ix|x)\\b", "").replaceAll("(?i)[:\\-\\s]*\\b\\d{1,2}\\b", "").trim();
+                            if (base.length() == 0) base = line;
+                            Integer prev = out.get(base);
+                            if (prev == null || level > prev) out.put(base, level);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) { /* ignore parsing errors */ }
+        return out;
     }
 
     private static Set<String> extractEnchantNames(ItemStack stack) {
