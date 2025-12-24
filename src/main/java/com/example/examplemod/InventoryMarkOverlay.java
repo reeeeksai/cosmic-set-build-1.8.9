@@ -155,6 +155,27 @@ public class InventoryMarkOverlay {
                 }
                 if (!found) missing.add(wantLc);
             }
+            // also consider base enchants for any desired enchant that "builds from" another
+            if (!missing.isEmpty()) {
+                Set<String> expanded = new HashSet<String>(missing);
+                for (String m : new HashSet<String>(missing)) {
+                    EnchantDef d = findEnchantDefByName(m);
+                    if (d != null && d.buildsFromId != null) {
+                        EnchantDef base = EnchantRegistry.get(d.buildsFromId);
+                        if (base != null && base.name != null) {
+                            String baseLc = base.name.toLowerCase();
+                            boolean basePresent = false;
+                            for (String p : present) {
+                                if (p == null) continue;
+                                String pl = p.toLowerCase();
+                                if (pl.contains(baseLc) || baseLc.contains(pl)) { basePresent = true; break; }
+                            }
+                            if (!basePresent) expanded.add(baseLc);
+                        }
+                    }
+                }
+                missing = expanded;
+            }
             if (missing.isEmpty()) continue;
 
             // scan visible container slots for books/items that provide any missing enchant
