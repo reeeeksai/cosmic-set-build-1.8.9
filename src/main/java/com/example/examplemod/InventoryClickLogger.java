@@ -50,7 +50,7 @@ public class InventoryClickLogger {
         if (!(mc.currentScreen instanceof GuiContainer)) {
             // suppressed chat: not in inventory
             return;
-        }
+        } 
 
         GuiContainer gui = (GuiContainer) mc.currentScreen;
         // convert mouse coordinates to GUI (scaled) coordinates using ScaledResolution
@@ -143,21 +143,32 @@ public class InventoryClickLogger {
                 // toggle mark if we mapped to a valid index
                 if (markIndex >= 0 && markIndex < 6) {
                     MarkedSlots marks = MarkedSlots.getInstance();
-                    marks.toggle(markIndex);
-                    boolean now = marks.isMarked(markIndex);
-                    // store slot rectangle when marked so overlay can render
-                    if (now) {
-                        // determine which player inventory index this corresponds to (object identity)
-                        int invIndex = -1;
-                        for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
-                            if (mc.thePlayer.inventory.mainInventory[k] == stack) { invIndex = k; break; }
-                        }
-                        String sig = signatureOf(stack);
-                        // store slot-relative coordinates (sx,sy) instead of absolute GUI coords
-                        marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, invIndex, sig);
-                    } else {
-                        marks.setMarkedAt(markIndex, false, 0,0,0,0, -1, null);
+                    boolean currentlyMarked = marks.isMarked(markIndex);
+                    String prevSig = marks.getMarkedSignature(markIndex);
+                    // determine which player inventory index this corresponds to (object identity)
+                    int invIndex = -1;
+                    for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
+                        if (mc.thePlayer.inventory.mainInventory[k] == stack) { invIndex = k; break; }
                     }
+                    String sig = signatureOf(stack);
+                    if (currentlyMarked) {
+                        // if another item of the same logical slot is clicked, switch the mark
+                        // to the newly clicked item instead of unmarking
+                        boolean sameItem = (sig != null && sig.equals(prevSig));
+                        if (!sameItem) {
+                            int lx = marks.getLastX(markIndex);
+                            int ly = marks.getLastY(markIndex);
+                            int lw = marks.getLastW(markIndex);
+                            int lh = marks.getLastH(markIndex);
+                            marks.setMarkedAt(markIndex, true, lx, ly, lw, lh, invIndex, sig);
+                        } else {
+                            marks.setMarkedAt(markIndex, false, 0,0,0,0, -1, null);
+                        }
+                    } else {
+                        // create a new mark at the clicked slot
+                        marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, invIndex, sig);
+                    }
+                    boolean now = marks.isMarked(markIndex);
                     String lbl = "";
                     switch (markIndex) {
                         case 0: lbl = "Helmet"; break;
