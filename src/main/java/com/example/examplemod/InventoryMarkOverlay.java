@@ -224,7 +224,9 @@ public class InventoryMarkOverlay {
         try {
             String name = stack.getDisplayName();
             if (name != null) {
-                String line = name.replaceAll("§.", "").trim();
+                // do NOT trim here; preserve leading chars so we can detect an
+                // enchant name that is preceded by a space and purposely reject it
+                String line = name.replaceAll("§.", "");
                 int status = lineProvidesMissingStatus(line, missingLc);
                 if (status > 0) return status;
             }
@@ -237,8 +239,17 @@ public class InventoryMarkOverlay {
         String cleaned = line.toLowerCase();
         for (String m : missingLc) {
             if (m == null) continue;
-            int pos = cleaned.indexOf(m);
+            int from = 0;
+            int pos = cleaned.indexOf(m, from);
             if (pos < 0) continue;
+            // require a match occurrence that is NOT immediately preceded by a space
+            boolean matched = false;
+            while (pos >= 0) {
+                if (pos == 0 || cleaned.charAt(pos - 1) != ' ') { matched = true; break; }
+                from = pos + 1;
+                pos = cleaned.indexOf(m, from);
+            }
+            if (!matched) continue;
             // look immediately after the matched enchant name for a level (roman or digits)
             int afterPos = pos + m.length();
             String after = cleaned.substring(afterPos);
@@ -377,7 +388,18 @@ public class InventoryMarkOverlay {
             String name = stack.getDisplayName();
             if (name != null) {
                 String nl = name.replaceAll("§.", "").toLowerCase();
-                for (String m : missingLc) if (nl.contains(m)) return true;
+                for (String m : missingLc) {
+                    if (m == null) continue;
+                    int from = 0;
+                    int pos = nl.indexOf(m, from);
+                    boolean matched = false;
+                    while (pos >= 0) {
+                        if (pos == 0 || nl.charAt(pos - 1) != ' ') { matched = true; break; }
+                        from = pos + 1;
+                        pos = nl.indexOf(m, from);
+                    }
+                    if (matched) return true;
+                }
             }
         } catch (Exception e) { }
         return false;
