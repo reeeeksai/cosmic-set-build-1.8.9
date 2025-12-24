@@ -38,23 +38,6 @@ public class InventoryClickLogger {
         if (event.phase != TickEvent.Phase.END) return;
         if (Minecraft.getMinecraft().thePlayer == null) return;
 
-        // Verify existing marks: if the tracked item has moved from the recorded inventory slot, clear the mark.
-        // Minecraft mc = Minecraft.getMinecraft();
-        // MarkedSlots marks = MarkedSlots.getInstance();
-        // for (int i = 0; i < 6; i++) {
-        //     if (!marks.isMarked(i)) continue;
-        //     int invIdx = marks.getMarkedInvIndex(i);
-        //     String sig = marks.getMarkedSignature(i);
-        //     if (invIdx >= 0) {
-        //         ItemStack cur = mc.thePlayer.inventory.mainInventory[invIdx];
-        //         String curSig = signatureOf(cur);
-        //         if (sig == null || (curSig == null) || !sig.equals(curSig)) {
-        //             // item moved or changed — clear mark
-        //             marks.setMarkedAt(i, false, 0,0,0,0, -1, null);
-        //         }
-        //     }
-        // }
-
         boolean down = Keyboard.isKeyDown(key.getKeyCode());
         if (down && !prevKeyDown) {
             processClick();
