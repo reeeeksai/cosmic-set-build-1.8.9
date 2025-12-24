@@ -150,23 +150,44 @@ public class InventoryClickLogger {
                     for (int k = 0; k < mc.thePlayer.inventory.mainInventory.length; k++) {
                         if (mc.thePlayer.inventory.mainInventory[k] == stack) { invIndex = k; break; }
                     }
+                    // Prefer to store the container Slot's slotNumber (container slot index)
+                    // so marks remain associated with the GUI Slot. If we couldn't
+                    // find a container slot number reflectively, fall back to the
+                    // raw inventory index. For armor/worn pieces invIndex stays -1.
+                    int containerSlotNumber = Integer.MIN_VALUE;
+                    try {
+                        java.lang.reflect.Field f = Slot.class.getDeclaredField("slotNumber");
+                        f.setAccessible(true);
+                        containerSlotNumber = f.getInt(slot);
+                    } catch (NoSuchFieldException nsf) {
+                        try {
+                            java.lang.reflect.Field f2 = Slot.class.getDeclaredField("slotIndex");
+                            f2.setAccessible(true);
+                            containerSlotNumber = f2.getInt(slot);
+                        } catch (NoSuchFieldException nsf2) {
+                            try {
+                                java.lang.reflect.Field f3 = Slot.class.getDeclaredField("field_75222_d");
+                                f3.setAccessible(true);
+                                containerSlotNumber = f3.getInt(slot);
+                            } catch (Exception e) { containerSlotNumber = Integer.MIN_VALUE; }
+                        } catch (Exception e) { containerSlotNumber = Integer.MIN_VALUE; }
+                    } catch (Exception e) { containerSlotNumber = Integer.MIN_VALUE; }
                     String sig = signatureOf(stack);
                     if (currentlyMarked) {
                         // if another item of the same logical slot is clicked, switch the mark
                         // to the newly clicked item instead of unmarking
                         boolean sameItem = (sig != null && sig.equals(prevSig));
                         if (!sameItem) {
-                            int lx = marks.getLastX(markIndex);
-                            int ly = marks.getLastY(markIndex);
-                            int lw = marks.getLastW(markIndex);
-                            int lh = marks.getLastH(markIndex);
-                            marks.setMarkedAt(markIndex, true, lx, ly, lw, lh, invIndex, sig);
+                            // move the existing mark to the newly clicked slot
+                            int storedIndex = (invIndex >= 0) ? (containerSlotNumber != Integer.MIN_VALUE ? containerSlotNumber : invIndex) : -1;
+                            marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, storedIndex, sig);
                         } else {
                             marks.setMarkedAt(markIndex, false, 0,0,0,0, -1, null);
                         }
                     } else {
                         // create a new mark at the clicked slot
-                        marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, invIndex, sig);
+                        int storedIndex = (invIndex >= 0) ? (containerSlotNumber != Integer.MIN_VALUE ? containerSlotNumber : invIndex) : -1;
+                        marks.setMarkedAt(markIndex, true, sx, sy, 16, 16, storedIndex, sig);
                     }
                     boolean now = marks.isMarked(markIndex);
                     String lbl = "";

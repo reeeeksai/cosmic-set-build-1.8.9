@@ -84,7 +84,7 @@ public class InventoryMarkOverlay {
                 // avoids losing marks during brief swap events (e.g. apply
                 // enchant) where the ItemStack instance may change.
                 try {
-                    ItemStack cur = mc.thePlayer.inventory.mainInventory[invIdxForMark];
+                    ItemStack cur = getStackForMarkedIndex(mc, guiC, invIdxForMark);
                     boolean valid = false;
                     if (cur != null) {
                         if (i >= 0 && i <= 3) { // armor slots
@@ -219,7 +219,7 @@ public class InventoryMarkOverlay {
             if (mc.thePlayer == null) continue;
             ItemStack piece = null;
             if (invIdx >= 0) {
-                piece = mc.thePlayer.inventory.mainInventory[invIdx];
+                piece = getStackForMarkedIndex(mc, guiC, invIdx);
             } else if (i >= 0 && i <= 3) {
                 // marked slot refers to a worn armor piece; armorInventory indices
                 // are 0=boots,1=leggings,2=chestplate,3=helmet, while our mark
@@ -534,5 +534,56 @@ public class InventoryMarkOverlay {
             sb.append("|").append(stack.getDisplayName());
         }
         return sb.toString();
+    }
+
+    // Resolve the stored marked index (which may be a container slot index)
+    // to the current ItemStack. Prefer the Slot in the currently-open GUI
+    // (matching container slot number). If not found, map container hotbar
+    // indices (36..44) back to mainInventory (0..8). Fall back to using
+    // the raw mainInventory index if it looks like one.
+    private static ItemStack getStackForMarkedIndex(Minecraft mc, GuiContainer guiC, int storedIdx) {
+        if (storedIdx < 0) return null;
+        // try to find a Slot in the open GUI that has the same container slot number
+        try {
+            for (Object o : guiC.inventorySlots.inventorySlots) {
+                if (!(o instanceof Slot)) continue;
+                Slot s = (Slot) o;
+                int slotIdx = Integer.MIN_VALUE;
+                try {
+                    java.lang.reflect.Field f = Slot.class.getDeclaredField("slotNumber");
+                    f.setAccessible(true);
+                    slotIdx = f.getInt(s);
+                } catch (NoSuchFieldException nsf) {
+                    try {
+                        java.lang.reflect.Field f2 = Slot.class.getDeclaredField("slotIndex");
+                        f2.setAccessible(true);
+                        slotIdx = f2.getInt(s);
+                    } catch (NoSuchFieldException nsf2) {
+                        try {
+                            java.lang.reflect.Field f3 = Slot.class.getDeclaredField("field_75222_d");
+                            f3.setAccessible(true);
+                            slotIdx = f3.getInt(s);
+                        } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+                    } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+                } catch (Exception e) { slotIdx = Integer.MIN_VALUE; }
+
+                if (slotIdx == storedIdx) {
+                    try { return s.getStack(); } catch (Exception ex) { return null; }
+                }
+            }
+        } catch (Exception e) { /* ignore */ }
+
+        // If no GUI is open or slot not present, handle hotbar container indices
+        if (storedIdx >= 36 && storedIdx <= 44) {
+            int inv = storedIdx - 36;
+            if (inv >= 0 && inv < mc.thePlayer.inventory.mainInventory.length) return mc.thePlayer.inventory.mainInventory[inv];
+        }
+
+        // fallback: if storedIdx looks like a mainInventory index, return that
+        if (storedIdx >= 0 && storedIdx < mc.thePlayer.inventory.mainInventory.length) {
+            return mc.thePlayer.inventory.mainInventory[storedIdx];
+        }
+
+        return null;
     }
 }
