@@ -40,7 +40,7 @@ This mod is intended purely as a visual helper.
 
 Download the latest version from **GitHub Releases**:
 
-👉 **https://github.com/YOUR_USERNAME/YOUR_REPO/releases**
+👉 https://github.com/reeeeksai/cosmic-set-build-1.8.9/releases/tag/cosmic
 
 (Download the `.jar` file)
 
