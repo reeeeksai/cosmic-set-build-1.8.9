@@ -85,12 +85,6 @@ Feedback, bug reports, and suggestions are welcome via GitHub Issues.
 
 ---
 
-## 📜 License
-
-MIT License (or replace with your chosen license)
-
----
-
 ## 📸 Screenshots / Video
 
 (Add screenshots or a short demo video here — highly recommended)
