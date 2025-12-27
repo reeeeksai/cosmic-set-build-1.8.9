@@ -156,20 +156,6 @@ public class GuiDesiredEnchants extends GuiScreen {
             if (list != null) {
                 slotEnchants[i].clear();
                 for (int j = 0; j < list.size(); j++) slotEnchants[i].add(list.get(j));
-                // sort loaded enchants by rarity priority so display/remove order is consistent
-                java.util.Collections.sort(slotEnchants[i], new java.util.Comparator<String>() {
-                    @Override public int compare(String a, String b) {
-                        int ai = getEnchantGlobalIndex(a);
-                        int bi = getEnchantGlobalIndex(b);
-                        EnchantDef ad = ai >= 0 ? allEnchantDefs.get(ai) : null;
-                        EnchantDef bd = bi >= 0 ? allEnchantDefs.get(bi) : null;
-                        int pa = ad != null ? rarityPriority(ad.rarity) : Integer.MAX_VALUE;
-                        int pb = bd != null ? rarityPriority(bd.rarity) : Integer.MAX_VALUE;
-                        if (pa != pb) return Integer.compare(pa, pb);
-                        if (ad != null && bd != null) return ad.name.compareToIgnoreCase(bd.name);
-                        return a.compareToIgnoreCase(b);
-                    }
-                });
             }
         }
         // update label on GUI (truncate to fit the button width)
@@ -197,7 +183,22 @@ public class GuiDesiredEnchants extends GuiScreen {
                 active.desired.put(st.name(), target);
             }
             target.clear();
-            for (int j = 0; j < slotEnchants[i].size(); j++) target.add(slotEnchants[i].get(j));
+            // sort enchants into the canonical display/remove order before saving
+            List<String> toSave = new ArrayList<String>(slotEnchants[i]);
+            java.util.Collections.sort(toSave, new java.util.Comparator<String>() {
+                @Override public int compare(String a, String b) {
+                    int ai = getEnchantGlobalIndex(a);
+                    int bi = getEnchantGlobalIndex(b);
+                    EnchantDef ad = ai >= 0 ? allEnchantDefs.get(ai) : null;
+                    EnchantDef bd = bi >= 0 ? allEnchantDefs.get(bi) : null;
+                    int pa = ad != null ? rarityPriority(ad.rarity) : Integer.MAX_VALUE;
+                    int pb = bd != null ? rarityPriority(bd.rarity) : Integer.MAX_VALUE;
+                    if (pa != pb) return Integer.compare(pa, pb);
+                    if (ad != null && bd != null) return ad.name.compareToIgnoreCase(bd.name);
+                    return a.compareToIgnoreCase(b);
+                }
+            });
+            for (String s : toSave) target.add(s);
         }
         active.touch();
         setManager.save();
