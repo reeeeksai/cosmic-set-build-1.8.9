@@ -82,9 +82,3 @@ There are no ads, paywalls, or locked features.
 ## 🤝 Contributing / Feedback
 
 Feedback, bug reports, and suggestions are welcome via GitHub Issues.
-
----
-
-## 📸 Screenshots / Video
-
-(Add screenshots or a short demo video here — highly recommended)
