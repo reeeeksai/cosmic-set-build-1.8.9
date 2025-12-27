@@ -1,59 +1,96 @@
--------------------------------------------
-Source installation information for modders
--------------------------------------------
-This code follows the Minecraft Forge installation methodology. It will apply
-some small patches to the vanilla MCP source code, giving you and it access 
-to some of the data and functions you need to build a successful mod.
+# Enchant Set Helper (Minecraft 1.8.9)
 
-Note also that the patches are built against "unrenamed" MCP source code (aka
-srgnames) - this means that you will not be able to read them directly against
-normal code.
+A **client-side quality-of-life mod** for Minecraft **1.8.9** that helps you build and track enchanted gear by highlighting **missing enchants** and **relevant enchant books**.
 
-Source pack installation information:
+Designed to make set building easier and less error-prone — no automation, no gameplay modification.
 
-Standalone source installation
-==============================
+---
 
-Step 1: Open your command-line and browse to the folder where you extracted the zip file.
+## ✨ Features
 
-Step 2: Once you have a command window up in the folder that the downloaded material was placed, type:
+- Configure desired enchants per armor piece and weapon via an in-game GUI
+- Mark armor or weapons in your inventory to see which enchants are missing
+- Highlight enchant books that match missing enchants
+- Supports multiple saved enchant sets
+- Works entirely client-side
+- No commands, no packets, no automation
 
-Windows: "gradlew setupDecompWorkspace"
-Linux/Mac OS: "./gradlew setupDecompWorkspace"
+---
 
-Step 3: After all that finished, you're left with a choice.
-For eclipse, run "gradlew eclipse" (./gradlew eclipse if you are on Mac/Linux)
+## 🛡️ Safety & Server Rules
 
-If you preffer to use IntelliJ, steps are a little different.
-1. Open IDEA, and import project.
-2. Select your build.gradle file and have it import.
-3. Once it's finished you must close IntelliJ and run the following command:
+- **Client-side only**
+- Does **not** interact with the server in any way
+- Does **not** automate actions or clicks
+- Only reads item tooltips and inventory state
+- Approved for use by server staff (see screenshots/video if provided)
 
-"gradlew genIntellijRuns" (./gradlew genIntellijRuns if you are on Mac/Linux)
+This mod is intended purely as a visual helper.
 
-Step 4: The final step is to open Eclipse and switch your workspace to /eclipse/ (if you use IDEA, it should automatically start on your project)
+---
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can run "gradlew --refresh-dependencies" to refresh the local cache. "gradlew clean" to reset everything {this does not effect your code} and then start the processs again.
+## 📦 Requirements
 
-Should it still not work, 
-Refer to #ForgeGradle on EsperNet for more information about the gradle environment.
+- Minecraft **1.8.9**
+- **Forge 1.8.9**
 
-Tip:
-If you do not care about seeing Minecraft's source code you can replace "setupDecompWorkspace" with one of the following:
-"setupDevWorkspace": Will patch, deobfusicated, and gather required assets to run minecraft, but will not generated human readable source code.
-"setupCIWorkspace": Same as Dev but will not download any assets. This is useful in build servers as it is the fastest because it does the least work.
+---
 
-Tip:
-When using Decomp workspace, the Minecraft source code is NOT added to your workspace in a editable way. Minecraft is treated like a normal Library. Sources are there for documentation and research purposes and usually can be accessed under the 'referenced libraries' section of your IDE.
+## 📥 Download
 
-Forge source installation
-=========================
-MinecraftForge ships with this code and installs it as part of the forge
-installation process, no further action is required on your part.
+Download the latest version from **GitHub Releases**:
 
-LexManos' Install Video
-=======================
-https://www.youtube.com/watch?v=8VEdtQLuLO0&feature=youtu.be
+👉 **https://github.com/YOUR_USERNAME/YOUR_REPO/releases**
 
-For more details update more often refer to the Forge Forums:
-http://www.minecraftforge.net/forum/index.php/topic,14048.0.html
+(Download the `.jar` file)
+
+---
+
+## 🔧 Installation
+
+1. Install **Forge 1.8.9**
+2. Download the mod `.jar` from the Releases page
+3. Place the `.jar` into your `.minecraft/mods` folder
+4. Launch Minecraft using the Forge profile
+
+That’s it.
+
+---
+
+## ❓ FAQ
+
+### Is this a hack or cheat?
+No. This mod does not automate gameplay, send packets, or modify server behavior.  
+It only provides visual information based on your inventory.
+
+### Can I get banned for using this?
+The mod is client-side only and was confirmed as allowed by server staff.  
+Use at your own discretion, as with any mod.
+
+### Does this work with custom enchant servers?
+Yes — enchants are defined internally and matched via tooltips.
+
+---
+
+## 🧠 Why is this free?
+
+This mod was built as a personal QoL tool and shared with the community.  
+There are no ads, paywalls, or locked features.
+
+---
+
+## 🤝 Contributing / Feedback
+
+Feedback, bug reports, and suggestions are welcome via GitHub Issues.
+
+---
+
+## 📜 License
+
+MIT License (or replace with your chosen license)
+
+---
+
+## 📸 Screenshots / Video
+
+(Add screenshots or a short demo video here — highly recommended)
